@@ -1,6 +1,6 @@
-# 心流 OS 🌊
+# 心流 OS 🌊（Flow-OS）
 
-> Flow-OS
+> 體驗看看：http://adhd-flow-garden-72d843.pages.sh.cvut.cz
 
 **一款開源、遊戲化的番茄鐘與生活作業系統，專為幫助 ADHD 患者及所有現代人打造專注力、戰勝拖延症而設計。**
 
