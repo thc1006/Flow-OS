@@ -1,4 +1,4 @@
-# 心流 OS 🌊（Flow-OS）
+# 心流 OS（Flow-OS）🌊
 
 > 體驗看看：http://adhd-flow-garden-72d843.pages.sh.cvut.cz
 
