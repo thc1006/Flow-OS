@@ -1,0 +1,26 @@
+# .gitlab-ci.yml
+
+# 指定要使用的 Docker 映像檔。'alpine' 是一個非常輕量的 Linux 發行版。
+image: alpine:latest
+
+# 定義一個名為 'pages' 的工作 (job)
+pages:
+  # 指定這個工作屬於 'deploy' 階段
+  stage: deploy
+
+  # 在這裡定義要執行的指令
+  script:
+    # 這個範例中，我們沒有複雜的建置步驟，
+    # 只是確認 public 資料夾存在。
+    # 如果您使用 SSG，這裡會是 'hugo' 或 'jekyll build' 等指令。
+    - echo "No build process needed. Deploying static files."
+
+  # 'artifacts' 是指工作完成後要保留的檔案或資料夾
+  artifacts:
+    # 指定我們要保留 'public' 資料夾的內容
+    paths:
+      - public
+
+  # 僅在程式碼被推送到 'main' 分支時，才執行這個工作
+  only:
+    - master
