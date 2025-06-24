@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心流OS v3.1.1</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://css.gg/css?|trophy|chart|plant|list" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: #111827; }
+        #plant-svg { transform-origin: bottom center; transition: transform 0.5s ease-in-out, filter 0.3s ease; }
+        .plant-grow { animation: grow 0.5s ease-in-out forwards; }
+        @keyframes grow { from { transform: scale(1); } to { transform: scale(1.05); } }
+        .plant-wilt { filter: saturate(0.5) contrast(0.8); transform: rotate(-1deg); }
+        .btn-primary { @apply bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition-all duration-300; }
+        .btn-primary:active { @apply scale-95; }
+        .btn-secondary { @apply bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-full shadow-md transform transition-all duration-300; }
+        .btn-secondary:active { @apply scale-95; }
+        .modal-overlay { @apply fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center transition-opacity duration-300 z-50; }
+        
+        .nav-item { @apply flex-1 text-center py-3 px-1 text-gray-400 rounded-full transition-all duration-300 flex flex-col items-center justify-center mx-1; transform: scale(0.95); }
+        .nav-item.active { @apply bg-emerald-800 text-emerald-300; transform: scale(1); }
+        .nav-icon { @apply h-6 w-6 mb-1; }
+
+        .achievement-badge { @apply bg-gray-800 p-4 rounded-lg flex flex-col items-center justify-center text-center transition-all duration-300 aspect-square; }
+        .achievement-badge.unlocked { @apply bg-gradient-to-br from-emerald-800 to-green-800 border border-emerald-600 shadow-lg; }
+        .achievement-icon { @apply text-4xl mb-2; }
+        .achievement-badge.locked { @apply opacity-40 filter grayscale; }
+
+        #toast-notification { @apply fixed top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white py-3 px-6 rounded-full shadow-2xl z-50; @apply transform transition-all duration-500 ease-in-out; opacity: 0; visibility: hidden; transform: translate(-50%, -20px); }
+        #toast-notification.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+
+        .task-item { @apply bg-gray-800 p-4 rounded-lg flex items-center justify-between transition-all duration-300 cursor-pointer hover:bg-gray-700; }
+        .task-pomodoro-display { @apply text-sm text-gray-400; }
+        .task-pomodoro-display .actual { @apply text-amber-400; }
+        .task-pomodoro-display .estimated { @apply text-gray-500; }
+        
+        .task-selection-item { @apply w-full text-left p-4 rounded-lg hover:bg-gray-700 transition-colors duration-200; }
+
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col min-h-screen">
+
+    <main class="flex-grow container mx-auto p-4 w-full">
+        <!-- 花園頁面 -->
+        <div id="garden-page" class="text-center max-w-md mx-auto">
+             <div class="absolute top-4 right-4"><button id="settings-button" class="text-gray-400 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button></div>
+            <div id="focusing-task-display" class="h-12 text-center mb-2"></div>
+            <div class="mb-4 h-64 flex items-center justify-center"><svg id="plant-svg" width="200" height="240" viewBox="0 0 200 240"><g id="plant-base"><path d="M20 230 C 40 210, 160 210, 180 230 L 20 230 Z" fill="#5c3c20"/></g><g id="plant-body"></g><g id="plant-rare-feature"></g></svg></div>
+            <h2 id="plant-name" class="text-3xl font-bold text-emerald-300 mb-2"></h2>
+            <div id="timer-display" class="text-7xl font-bold mb-4">25:00</div>
+            <div class="w-full bg-gray-700 rounded-full h-4 mb-6"><div id="progress-bar" class="bg-emerald-400 h-4 rounded-full" style="width: 0%"></div></div>
+            <div class="space-y-4"><button id="main-action-button" class="btn-primary text-2xl w-full">選擇任務以開始</button><button id="distracted-button" class="btn-secondary hidden">我分心了</button></div>
+        </div>
+        
+        <div id="tasks-page" class="hidden max-w-2xl mx-auto">
+             <div class="flex justify-between items-center mb-6"><h1 class="text-3xl font-bold">我的任務</h1><button id="add-task-button" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg">新增任務</button></div>
+             <div id="tasks-list" class="space-y-3"></div>
+        </div>
+
+        <!-- v3.1.1 修復: 儀表板 HTML 結構 -->
+        <div id="dashboard-page" class="hidden max-w-2xl mx-auto">
+            <h1 class="text-3xl font-bold text-center mb-6">我的儀表板</h1>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><div class="text-4xl font-bold text-amber-400" id="stats-total-time">0</div><div class="text-sm text-gray-400">總專注時長 (分)</div></div>
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><div class="text-4xl font-bold text-cyan-400" id="stats-total-sessions">0</div><div class="text-sm text-gray-400">總專注次數</div></div>
+                <div class="bg-gray-800 p-4 rounded-lg text-center"><div class="text-4xl font-bold text-rose-400" id="stats-longest-streak">0</div><div class="text-sm text-gray-400">最長連續專注天數</div></div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-xl font-semibold mb-2 text-center">最近一週專注活動</h2>
+                <canvas id="focus-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- v3.1.1 修復: 成就頁面 HTML 結構 -->
+        <div id="achievements-page" class="hidden max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold text-center mb-6">我的成就</h1>
+            <div id="achievements-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+        </div>
+    </main>
+    
+    <nav class="sticky bottom-0 bg-gray-800/80 backdrop-blur-sm border-t border-gray-700 flex justify-around p-2">
+        <button data-page="dashboard-page" class="nav-item"><i class="gg-chart nav-icon"></i><span>儀表板</span></button>
+        <button data-page="tasks-page" class="nav-item"><i class="gg-list nav-icon"></i><span>任務</span></button>
+        <button data-page="garden-page" class="nav-item active"><i class="gg-plant nav-icon"></i><span>花園</span></button>
+        <button data-page="achievements-page" class="nav-item"><i class="gg-trophy nav-icon"></i><span>成就</span></button>
+    </nav>
+    
+    <div id="modals">
+        <div id="task-selection-modal" class="modal-overlay hidden"><div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col max-h-[90vh]"><div class="p-6 border-b border-gray-700 flex justify-between items-center"><h2 class="text-2xl font-bold">選擇一個任務</h2><button id="close-task-selection-button" class="text-gray-400 hover:text-white text-3xl">&times;</button></div><div id="task-selection-list" class="p-4 space-y-2 overflow-y-auto"></div></div></div>
+        <div id="task-modal" class="modal-overlay hidden"><div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col"><div class="p-6 border-b border-gray-700 flex justify-between items-center"><h2 id="task-modal-title" class="text-2xl font-bold">新增任務</h2><button id="close-task-modal-button" class="text-gray-400 hover:text-white text-3xl">&times;</button></div><form id="task-form" class="p-6 space-y-4"><input type="hidden" id="task-id-input"><div><label for="task-name-input" class="block mb-2 font-semibold">任務名稱</label><input type="text" id="task-name-input" class="w-full px-4 py-3 bg-gray-700 text-white rounded-lg" placeholder="例如：完成第三季報告" required></div><div><label for="task-icon-input" class="block mb-2 font-semibold">選擇圖示</label><input type="text" id="task-icon-input" class="w-full px-4 py-3 bg-gray-700 text-white rounded-lg" placeholder="例如：📊 (可輸入 Emoji)"></div><div><label for="task-pomodoros-input" class="block mb-2 font-semibold">預計番茄鐘數量</label><select id="task-pomodoros-input" class="w-full px-4 py-3 bg-gray-700 text-white rounded-lg"><option value="0">無預計</option><option value="1">1 🍅</option><option value="2">2 🍅</option><option value="3">3 🍅</option><option value="4">4 🍅</option><option value="5">5 🍅</option><option value="8">8 🍅</option><option value="10">10 🍅</option></select></div></form><div class="p-6 border-t border-gray-700 flex flex-col space-y-2"><button id="save-task-button" class="bg-emerald-600 hover:bg-emerald-700 text-white w-full text-lg py-3 rounded-lg">儲存任務</button><button id="delete-task-button" class="bg-red-800 hover:bg-red-700 text-white w-full text-center py-2 rounded-lg hidden">刪除任務</button></div></div></div>
+        <div id="onboarding-modal" class="modal-overlay hidden"><div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center"><h1 class="text-3xl font-bold mb-4 text-emerald-300">歡迎來到心流OS</h1><p class="text-gray-300 mb-6">你的專注力，將會灌溉一株小樹苗，讓它茁壯成長。</p><form id="onboarding-form"><label for="plant-name-input" class="block mb-2 font-semibold">為你的植物夥伴取個名字吧！</label><input type="text" id="plant-name-input" class="w-full px-4 py-3 bg-gray-700 text-white rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="例如：小綠" required><button type="submit" class="btn-primary w-full">開始種植</button></form></div></div>
+        <div id="settings-modal" class="modal-overlay hidden"><div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col max-h-[90vh]"><div class="p-6 border-b border-gray-700 flex justify-between items-center"><h2 class="text-2xl font-bold">設定</h2><button id="close-settings-button" class="text-gray-400 hover:text-white text-3xl">&times;</button></div><div class="p-6 space-y-4 overflow-y-auto"><div><label for="focus-duration-input" class="block mb-2 font-semibold">專注時間 (分鐘)</label><input type="number" id="focus-duration-input" class="w-full px-4 py-3 bg-gray-700 text-white rounded-lg" min="1"></div><div><label for="break-duration-input" class="block mb-2 font-semibold">休息時間 (分鐘)</label><input type="number" id="break-duration-input" class="w-full px-4 py-3 bg-gray-700 text-white rounded-lg" min="1"></div></div><div class="p-6 border-t border-gray-700"><button id="save-settings-button" class="btn-primary w-full text-lg py-3">儲存設定</button></div></div></div>
+    </div>
+    
+    <div id="toast-notification"><span id="toast-text"></span></div>
+
+    <script>
+        // --- DOM Elements ---
+        const DOMElements = {
+            pages: document.querySelectorAll('main > div'),
+            navButtons: document.querySelectorAll('.nav-item'),
+            mainActionButton: document.getElementById('main-action-button'),
+            taskSelectionModal: document.getElementById('task-selection-modal'),
+            taskSelectionList: document.getElementById('task-selection-list'),
+            closeTaskSelectionButton: document.getElementById('close-task-selection-button'),
+            focusingTaskDisplay: document.getElementById('focusing-task-display'),
+            timerDisplay: document.getElementById('timer-display'),
+            progressBar: document.getElementById('progress-bar'),
+            distractedButton: document.getElementById('distracted-button'),
+            plantName: document.getElementById('plant-name'),
+            plantSvg: document.getElementById('plant-svg'),
+            plantBody: document.getElementById('plant-body'),
+            plantRareFeature: document.getElementById('plant-rare-feature'),
+            tasksPage: document.getElementById('tasks-page'),
+            addTaskButton: document.getElementById('add-task-button'),
+            tasksList: document.getElementById('tasks-list'),
+            taskModal: document.getElementById('task-modal'),
+            closeTaskModalButton: document.getElementById('close-task-modal-button'),
+            saveTaskButton: document.getElementById('save-task-button'),
+            deleteTaskButton: document.getElementById('delete-task-button'),
+            taskForm: document.getElementById('task-form'),
+            taskModalTitle: document.getElementById('task-modal-title'),
+            taskIdInput: document.getElementById('task-id-input'),
+            taskNameInput: document.getElementById('task-name-input'),
+            taskIconInput: document.getElementById('task-icon-input'),
+            taskPomodorosInput: document.getElementById('task-pomodoros-input'),
+            onboardingModal: document.getElementById('onboarding-modal'),
+            onboardingForm: document.getElementById('onboarding-form'),
+            plantNameInput: document.getElementById('plant-name-input'),
+            settingsButton: document.getElementById('settings-button'),
+            settingsModal: document.getElementById('settings-modal'),
+            closeSettingsButton: document.getElementById('close-settings-button'),
+            saveSettingsButton: document.getElementById('save-settings-button'),
+            focusDurationInput: document.getElementById('focus-duration-input'),
+            breakDurationInput: document.getElementById('break-duration-input'),
+            // v3.1.1 修復: 補上遺漏的 DOM 元素
+            dashboardPage: document.getElementById('dashboard-page'),
+            achievementsPage: document.getElementById('achievements-page'),
+            statsTotalTime: document.getElementById('stats-total-time'),
+            statsTotalSessions: document.getElementById('stats-total-sessions'),
+            statsLongestStreak: document.getElementById('stats-longest-streak'),
+            focusChartCanvas: document.getElementById('focus-chart'),
+            achievementsGrid: document.getElementById('achievements-grid'),
+            toast: document.getElementById('toast-notification'),
+            toastText: document.getElementById('toast-text'),
+        };
+
+        // --- State Management ---
+        let state = {};
+        let focusChart = null; // v3.1.1 修復
+        function resetState() {
+            state = {
+                timer: { mode: 'idle', endTime: 0, animationFrameId: null, totalDuration: 0 },
+                currentTaskId: null,
+                settings: { focusDuration: 25, breakDuration: 5 },
+                plantName: '小綠',
+                growthLevel: 0,
+                tasks: [],
+                focusHistory: [], // v3.1.1 修復
+                achievements: [], // v3.1.1 修復
+            };
+        }
+        function saveData() { localStorage.setItem('flowOSState_v3.1', JSON.stringify(state)); }
+        function loadData() {
+            const savedData = JSON.parse(localStorage.getItem('flowOSState_v3.1'));
+            if (savedData) {
+                Object.assign(state, savedData);
+                if (!state.tasks) state.tasks = [];
+                if (!state.timer) state.timer = { mode: 'idle' };
+                if (!state.focusHistory) state.focusHistory = [];
+                if (!state.achievements) state.achievements = [];
+                return true;
+            }
+            return false;
+        }
+
+        // --- Constants and Sounds ---
+        const synth = new Tone.Synth().toDestination();
+        const sounds = {
+            success: () => synth.triggerAttackRelease("C5", "8n", Tone.now()),
+            start: () => synth.triggerAttackRelease("C4", "8n", Tone.now()),
+            save: () => synth.triggerAttackRelease("E5", "8n", Tone.now()),
+            achievement: () => synth.triggerAttackRelease("G5", "4n", Tone.now()), // v3.1.1 修復
+        };
+        const plantStages=[`<path d="M100 210 L100 180" stroke="#73b865" stroke-width="4"/>`,`<path d="M100 210 L100 170" stroke="#73b865" stroke-width="5"/><path d="M100 180 C 80 170, 80 150, 100 140" stroke="#84cc76" stroke-width="4" fill="none"/>`,`<path d="M100 210 L100 160" stroke="#73b865" stroke-width="6"/><path d="M100 180 C 80 170, 80 150, 100 140" stroke="#84cc76" stroke-width="4" fill="none"/><path d="M100 175 C 120 165, 120 145, 100 135" stroke="#84cc76" stroke-width="4" fill="none"/>`];
+
+        // --- v3.1.1 修復: 重新加入儀表板與成就系統 ---
+        const ACHIEVEMENT_CONFIG = {
+            focus_1: { title: "專注新手", desc: "完成第 1 次專注", icon: "🌱", check: s => s.growthLevel >= 1 },
+            focus_10: { title: "專注達人", desc: "完成 10 次專注", icon: "🌳", check: s => s.growthLevel >= 10 },
+            time_60: { title: "一小時成就", desc: "累計專注 60 分鐘", icon: "⏱️", check: s => calculateTotalFocusTime(s) >= 60 },
+            streak_3: { title: "好事成三", desc: "連續專注 3 天", icon: "🥉", check: s => calculateLongestStreak(s.focusHistory) >= 3 },
+        };
+
+        function showToast(message) {
+            DOMElements.toastText.textContent = message;
+            DOMElements.toast.classList.add('show');
+            setTimeout(() => DOMElements.toast.classList.remove('show'), 3000);
+        }
+
+        function checkAchievements() {
+            Object.keys(ACHIEVEMENT_CONFIG).forEach(id => {
+                if (!state.achievements.includes(id)) {
+                    if (ACHIEVEMENT_CONFIG[id].check(state)) {
+                        state.achievements.push(id);
+                        showToast(`徽章已解鎖：${ACHIEVEMENT_CONFIG[id].title}`);
+                        sounds.achievement();
+                    }
+                }
+            });
+        }
+        
+        function renderAchievements() {
+            DOMElements.achievementsGrid.innerHTML = '';
+            Object.keys(ACHIEVEMENT_CONFIG).forEach(id => {
+                const config = ACHIEVEMENT_CONFIG[id];
+                const unlocked = state.achievements.includes(id);
+                const badge = document.createElement('div');
+                badge.className = `achievement-badge ${unlocked ? 'unlocked' : 'locked'}`;
+                badge.innerHTML = `<div class="achievement-icon">${config.icon}</div><h3 class="font-bold">${config.title}</h3><p class="text-xs text-gray-400">${config.desc}</p>`;
+                DOMElements.achievementsGrid.appendChild(badge);
+            });
+        }
+        
+        function calculateTotalFocusTime(s) {
+            return s.focusHistory.reduce((sum, item) => sum + item.duration, 0);
+        }
+
+        function calculateLongestStreak(history) {
+            if (history.length === 0) return 0;
+            const dates = [...new Set(history.map(item => item.date))].sort();
+            if (dates.length === 0) return 0;
+            let longestStreak = 1;
+            let currentStreak = 1;
+            for (let i = 1; i < dates.length; i++) {
+                const currentDate = new Date(dates[i]);
+                const prevDate = new Date(dates[i - 1]);
+                const diffTime = currentDate - prevDate;
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                if (diffDays === 1) {
+                    currentStreak++;
+                } else {
+                    longestStreak = Math.max(longestStreak, currentStreak);
+                    currentStreak = 1;
+                }
+            }
+            return Math.max(longestStreak, currentStreak);
+        }
+
+        function renderDashboard() {
+            DOMElements.statsTotalTime.textContent = calculateTotalFocusTime(state);
+            DOMElements.statsTotalSessions.textContent = state.growthLevel;
+            DOMElements.statsLongestStreak.textContent = calculateLongestStreak(state.focusHistory);
+            const last7Days = {};
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                last7Days[d.toISOString().split('T')[0]] = 0;
+            }
+            state.focusHistory.forEach(item => {
+                if (last7Days[item.date] !== undefined) {
+                    last7Days[item.date] += item.duration;
+                }
+            });
+            const chartLabels = Object.keys(last7Days).map(d => d.substring(5));
+            const chartData = Object.values(last7Days);
+            if (focusChart) focusChart.destroy();
+            focusChart = new Chart(DOMElements.focusChartCanvas, {
+                type: 'bar',
+                data: { labels: chartLabels, datasets: [{ label: '專注時長 (分鐘)', data: chartData, backgroundColor: 'rgba(52, 211, 153, 0.5)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, borderRadius: 5 }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { color: 'rgba(255,255,255,0.1)' } } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+
+        // --- Timer Core (v3.1 Refactored) ---
+        function startTimer(mode, durationInSeconds) {
+            if (state.timer.animationFrameId) cancelAnimationFrame(state.timer.animationFrameId);
+            
+            state.timer.mode = mode;
+            state.timer.totalDuration = durationInSeconds * 1000;
+            state.timer.endTime = Date.now() + state.timer.totalDuration;
+            
+            updateUIForTimerStart();
+            sounds.start();
+            
+            state.timer.animationFrameId = requestAnimationFrame(timerLoop);
+        }
+
+        function timerLoop() {
+            const timeLeft = state.timer.endTime - Date.now();
+            if (timeLeft <= 0) {
+                updateTimerDisplay(0);
+                updateProgressBar(1);
+                cancelAnimationFrame(state.timer.animationFrameId);
+                handleTimerEnd();
+                return;
+            }
+            updateTimerDisplay(timeLeft);
+            updateProgressBar(1 - timeLeft / state.timer.totalDuration);
+            state.timer.animationFrameId = requestAnimationFrame(timerLoop);
+        }
+
+        function handleTimerEnd() {
+            sounds.success();
+            if (state.timer.mode === 'focus') {
+                const task = state.tasks.find(t => t.id === state.currentTaskId);
+                if (task) task.pomodorosActual = (task.pomodorosActual || 0) + 1;
+                
+                state.growthLevel++;
+                const today = new Date().toISOString().split('T')[0];
+                state.focusHistory.push({ date: today, duration: state.settings.focusDuration });
+                checkAchievements();
+                
+                saveData();
+                startTimer('break', state.settings.breakDuration * 60);
+            } else if (state.timer.mode === 'break') {
+                resetToIdleState();
+            }
+        }
+
+        function resetToIdleState() {
+            state.timer.mode = 'idle';
+            state.currentTaskId = null;
+            if(state.timer.animationFrameId) cancelAnimationFrame(state.timer.animationFrameId);
+            state.timer.animationFrameId = null;
+            updateUIForIdle();
+            saveData();
+        }
+
+        // --- UI Update Functions ---
+        function updateTimerDisplay(ms) {
+            const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            DOMElements.timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        function updateProgressBar(progress) { DOMElements.progressBar.style.width = `${progress * 100}%`; }
+        
+        function updateUIForTimerStart() {
+            DOMElements.mainActionButton.disabled = true;
+            DOMElements.distractedButton.classList.remove('hidden');
+            DOMElements.mainActionButton.textContent = state.timer.mode === 'focus' ? '專注中...' : '休息中...';
+            updateFocusingTaskDisplay();
+        }
+        
+        function updateUIForIdle() {
+            DOMElements.mainActionButton.disabled = false;
+            DOMElements.distractedButton.classList.add('hidden');
+            DOMElements.mainActionButton.textContent = '選擇任務以開始';
+            updateTimerDisplay(state.settings.focusDuration * 60 * 1000);
+            updateProgressBar(0);
+            updateFocusingTaskDisplay();
+        }
+
+        function updateFocusingTaskDisplay() {
+            if (state.currentTaskId) {
+                const task = state.tasks.find(t => t.id === state.currentTaskId);
+                if (task) DOMElements.focusingTaskDisplay.innerHTML = `<p class="text-gray-400">專注於: <span class="font-bold text-emerald-300">${task.icon || ''} ${task.name}</span></p>`;
+            } else {
+                DOMElements.focusingTaskDisplay.innerHTML = '';
+            }
+        }
+
+        function updatePlantVisuals(){
+            DOMElements.plantName.textContent = state.plantName;
+            const stageIndex = Math.min(Math.floor(state.growthLevel / 2), plantStages.length - 1);
+            DOMElements.plantBody.innerHTML = plantStages[stageIndex] || plantStages[0];
+        }
+
+        // --- Task Management ---
+        function openTaskSelectionModal() {
+            DOMElements.taskSelectionList.innerHTML = '';
+            const incompleteTasks = state.tasks.filter(t => !(t.pomodorosEstimated > 0 && t.pomodorosActual >= t.pomodorosEstimated));
+            if (incompleteTasks.length === 0) {
+                 DOMElements.taskSelectionList.innerHTML = `<p class="p-4 text-center text-gray-400">太棒了，沒有未完成的任務！<br>請先到「任務」頁面新增一個吧！</p>`;
+            } else {
+                incompleteTasks.forEach(task => {
+                    const taskEl = document.createElement('button');
+                    taskEl.className = 'task-selection-item';
+                    taskEl.dataset.taskId = task.id;
+                    taskEl.innerHTML = `<span class="text-lg font-semibold">${task.icon || '🎯'} ${task.name}</span>`;
+                    DOMElements.taskSelectionList.appendChild(taskEl);
+                });
+            }
+            DOMElements.taskSelectionModal.classList.remove('hidden');
+        }
+        function selectTaskForFocus(taskId) {
+            state.currentTaskId = taskId;
+            DOMElements.taskSelectionModal.classList.add('hidden');
+            DOMElements.mainActionButton.textContent = '開始專注';
+            updateFocusingTaskDisplay();
+        }
+        function openTaskModal(task = null) {
+            DOMElements.taskForm.reset();
+            if (task) {
+                DOMElements.taskModalTitle.textContent = "編輯任務";
+                DOMElements.taskIdInput.value = task.id;
+                DOMElements.taskNameInput.value = task.name;
+                DOMElements.taskIconInput.value = task.icon;
+                DOMElements.taskPomodorosInput.value = task.pomodorosEstimated;
+                DOMElements.deleteTaskButton.classList.remove('hidden');
+            } else {
+                DOMElements.taskModalTitle.textContent = "新增任務";
+                DOMElements.taskIdInput.value = '';
+                DOMElements.deleteTaskButton.classList.add('hidden');
+            }
+            DOMElements.taskModal.classList.remove('hidden');
+        }
+        function saveTask() {
+            const id = DOMElements.taskIdInput.value;
+            const name = DOMElements.taskNameInput.value.trim();
+            if (!name) return;
+            const icon = DOMElements.taskIconInput.value.trim();
+            const pomodorosEstimated = parseInt(DOMElements.taskPomodorosInput.value, 10);
+            if (id) {
+                const task = state.tasks.find(t => t.id === id);
+                if(task) Object.assign(task, { name, icon, pomodorosEstimated });
+            } else {
+                state.tasks.push({ id: `t_${Date.now()}`, name, icon, pomodorosEstimated, pomodorosActual: 0 });
+            }
+            saveData();
+            renderTasksPage();
+            DOMElements.taskModal.classList.add('hidden');
+        }
+        function deleteTask() {
+            state.tasks = state.tasks.filter(t => t.id !== DOMElements.taskIdInput.value);
+            saveData();
+            renderTasksPage();
+            DOMElements.taskModal.classList.add('hidden');
+        }
+        function renderTasksPage() {
+            DOMElements.tasksList.innerHTML = '';
+            state.tasks.forEach(task => {
+                const taskEl = document.createElement('div');
+                taskEl.className = 'task-item';
+                taskEl.dataset.taskId = task.id;
+                const tomatoes = Array(task.pomodorosActual || 0).fill('🍅').join('');
+                const estimatedTomatoes = Array(task.pomodorosEstimated || 0).fill('⚪').join('');
+                taskEl.innerHTML = `<div class="flex-grow flex items-center task-info"><span class="text-3xl mr-4">${task.icon || '🎯'}</span><div><span class="text-lg font-semibold">${task.name}</span><div class="task-pomodoro-display"><span class="actual">${tomatoes}</span><span class="estimated">${estimatedTomatoes.substring(tomatoes.length)}</span></div></div></div>`;
+                DOMElements.tasksList.appendChild(taskEl);
+            });
+        }
+        
+        // --- Navigation & Event Listeners Setup ---
+        function switchPage(pageId) {
+            document.querySelectorAll('main > div').forEach(p => p.classList.add('hidden'));
+            document.getElementById(pageId).classList.remove('hidden');
+            DOMElements.navButtons.forEach(b => b.classList.toggle('active', b.dataset.page === pageId));
+            if (pageId === 'tasks-page') renderTasksPage();
+            if (pageId === 'dashboard-page') renderDashboard();
+            if (pageId === 'achievements-page') renderAchievements();
+        }
+
+        function setupEventListeners() {
+            DOMElements.mainActionButton.addEventListener('click', () => {
+                if (state.timer.mode === 'idle') {
+                    if (!state.currentTaskId) openTaskSelectionModal();
+                    else startTimer('focus', state.settings.focusDuration * 60);
+                }
+            });
+            DOMElements.closeTaskSelectionButton.addEventListener('click', () => DOMElements.taskSelectionModal.classList.add('hidden'));
+            DOMElements.taskSelectionList.addEventListener('click', e => {
+                const taskItem = e.target.closest('.task-selection-item');
+                if (taskItem) selectTaskForFocus(taskItem.dataset.taskId);
+            });
+            DOMElements.navButtons.forEach(b => b.addEventListener('click', () => switchPage(b.dataset.page)));
+            DOMElements.addTaskButton.addEventListener('click', () => openTaskModal());
+            DOMElements.tasksList.addEventListener('click', e => {
+                const taskItem = e.target.closest('.task-item');
+                if (taskItem) openTaskModal(state.tasks.find(t => t.id === taskItem.dataset.taskId));
+            });
+            DOMElements.saveTaskButton.addEventListener('click', saveTask);
+            DOMElements.deleteTaskButton.addEventListener('click', deleteTask);
+            DOMElements.closeTaskModalButton.addEventListener('click', () => DOMElements.taskModal.classList.add('hidden'));
+            DOMElements.onboardingForm.addEventListener('submit', e => {
+                e.preventDefault();
+                state.plantName = DOMElements.plantNameInput.value.trim() || '小綠';
+                DOMElements.onboardingModal.classList.add('hidden');
+                updatePlantVisuals();
+                saveData();
+            });
+            DOMElements.settingsButton.addEventListener('click', () => {
+                DOMElements.focusDurationInput.value = state.settings.focusDuration;
+                DOMElements.breakDurationInput.value = state.settings.breakDuration;
+                DOMElements.settingsModal.classList.remove('hidden');
+            });
+            DOMElements.closeSettingsButton.addEventListener('click', () => DOMElements.settingsModal.classList.add('hidden'));
+            DOMElements.saveSettingsButton.addEventListener('click', () => {
+                state.settings.focusDuration = parseInt(DOMElements.focusDurationInput.value, 10) || 25;
+                state.settings.breakDuration = parseInt(DOMElements.breakDurationInput.value, 10) || 5;
+                if(state.timer.mode === 'idle') resetToIdleState();
+                DOMElements.settingsModal.classList.add('hidden');
+                sounds.save();
+                saveData();
+            });
+        }
+
+        // --- Initialization ---
+        function init() {
+            resetState();
+            if(!loadData()) {
+                DOMElements.onboardingModal.classList.remove('hidden');
+            }
+            updatePlantVisuals();
+            resetToIdleState();
+            setupEventListeners();
+            switchPage('garden-page');
+        }
+        init();
+    </script>
+</body>
+</html>
