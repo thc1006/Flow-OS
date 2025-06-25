@@ -42,9 +42,9 @@
 
 ## **📝 開發背景與原始儲存庫**
 
-由於每個 GitHub 帳號只能擁有一個 `github.io` 網域，而我的帳號已將其用於個人網頁，因此本專案無法直接透過 GitHub Pages 提供線上預覽。
+由於每個 GitHub 帳號只能擁有一個 `github.io` 網域，啊我已經把它用在個人網頁上了，所以本專案不是用 GitHub Pages 進行部署和提供線上預覽。
 
-專案的初期開發與版本發布是在捷克理工大學 (ČVUT) 的 Silicon Hill GitLab 平台上進行的。您可以在那裡找到最原始的開發紀錄與歷史版本：
+專案的初期開發與版本發布我把他托管在在 ČVUT 的 Silicon Hill GitLab 平台上。可以在下方連結找到最原始的開發紀錄與歷史版本：
 
 * **原始專案儲存庫：** [https://git.sh.cvut.cz/thc1006/adhd-flow-garden](https://git.sh.cvut.cz/thc1006/adhd-flow-garden)
 * **歷史版本發布 (Releases)：** [https://git.sh.cvut.cz/thc1006/adhd-flow-garden/-/tags](https://git.sh.cvut.cz/thc1006/adhd-flow-garden/-/tags)
