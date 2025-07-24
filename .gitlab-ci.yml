@@ -1,102 +1,142 @@
+# 建議使用明確的 Node.js 版本以確保環境一致性
 image: node:18
 
+# 重新定義管線階段，使其流程更具邏輯性
+# install: 安裝依賴
+# test:    執行不需建置的測試 (單元測試、程式碼風格檢查)
+# build:   建置應用程式
+# review:  在建置後的應用程式上執行測試 (E2E, Accessibility)
+# deploy:  部署應用程式
 stages:
   - install
   - test
   - build
+  - review
   - deploy
 
 variables:
+  # 將 npm 的快取目錄指定在專案資料夾內
   npm_config_cache: "$CI_PROJECT_DIR/.npm"
 
+# 設定快取，加速後續的管線執行
 cache:
+  # 使用 package-lock.json 作為快取的 key，當依賴變動時快取才會更新
+  key:
+    files:
+      - package-lock.json
+  # 只快取 npm 下載的套件，不快取 node_modules
   paths:
     - .npm/
-    - node_modules/
 
+# 安裝所有 npm 依賴
 install_dependencies:
   stage: install
   script:
+    # 使用 'npm ci' 可以更快速且可靠地從 package-lock.json 安裝
     - npm ci
   artifacts:
+    # 將 node_modules 作為產物傳遞給後續的工作
     paths:
       - node_modules/
+    # 產物只需要在當前管線中有效即可
     expire_in: 1 hour
 
-lint_and_test:
+# 執行程式碼風格檢查與單元測試
+lint_and_unit_tests:
   stage: test
+  # 此工作依賴於 install_dependencies 完成後所安裝的 node_modules
   needs: [install_dependencies]
   script:
     - npm run lint
     - npm run type-check
     - npm run test -- --coverage
+  # 從 CI 輸出中解析測試覆蓋率
   coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)%/'
   artifacts:
+    # 產生 Cobertura 格式的覆蓋率報告，可在 GitLab MR 介面中顯示
     reports:
       coverage_report:
         coverage_format: cobertura
         path: coverage/cobertura-coverage.xml
 
-e2e_tests:
-  stage: test
-  needs: [install_dependencies]
-  script:
-    - npm run build
-    - npm start &
-    - sleep 10
-    - npm run test:e2e
-  artifacts:
-    when: always
-    paths:
-      - playwright-report/
-    expire_in: 1 week
-
-accessibility_tests:
-  stage: test
-  needs: [install_dependencies]
-  script:
-    - npm run build
-    - npm start &
-    - sleep 10
-    - npm run test:a11y
-  artifacts:
-    when: always
-    paths:
-      - accessibility-report/
-    expire_in: 1 week
-
+# 建置應用程式
 build_app:
   stage: build
+  # 同樣需要先安裝依賴
   needs: [install_dependencies]
   script:
     - npm run build
   artifacts:
+    # 將建置後的 dist 目錄作為產物傳遞
     paths:
       - dist/
     expire_in: 1 week
 
+# 這是給需要啟動伺服器進行測試的工作所使用的 YAML 樣板
+.review_app_tests:
+  stage: review
+  # 這些測試需要 node_modules 和建置好的 dist 目錄
+  needs: ["install_dependencies", "build_app"]
+  before_script:
+    # 在背景啟動應用程式。請確保您的 'npm start' 指令會服務 'dist' 目錄
+    - npm start &
+    # FIXME: 'sleep' 的方式不夠可靠，伺服器啟動時間可能更長或更短。
+    # 建議改用 'wait-on' 這類工具來確保伺服器已準備就緒。
+    # 例如：npm install --save-dev wait-on && npx wait-on http://localhost:3000
+    - sleep 15
+  artifacts:
+    # 無論成功或失敗，都保留測試報告以供除錯
+    when: always
+    expire_in: 1 week
+
+# 執行 E2E (End-to-End) 測試
+e2e_tests:
+  extends: .review_app_tests
+  script:
+    - npm run test:e2e
+  artifacts:
+    # 儲存 playwright 的報告
+    paths:
+      - playwright-report/
+
+# 執行 A11y (Accessibility) 無障礙測試
+accessibility_tests:
+  extends: .review_app_tests
+  script:
+    - npm run test:a11y
+  artifacts:
+    # 儲存無障礙測試報告
+    paths:
+      - accessibility-report/
+
+# 部署到 GitLab Pages (生產環境)
 deploy_pages:
   stage: deploy
-  needs: [build_app, lint_and_test, e2e_tests, accessibility_tests]
+  # 部署前，必須確保建置成功，且所有測試都已通過
+  needs: [build_app, lint_and_unit_tests, e2e_tests, accessibility_tests]
   script:
-    - mkdir public
-    - cp -r dist/* public/
+    # GitLab Pages 要求網站根目錄必須是 'public'
+    - mv dist public
   artifacts:
     paths:
       - public
+  # 只在 'main' 分支上觸發此工作
   only:
     - main
 
+# 部署到 Staging 環境
 deploy_staging:
   stage: deploy
-  needs: [build_app, lint_and_test]
+  # Staging 環境的部署為了快速反饋，可以不等待 E2E 和無障礙測試
+  needs: [build_app, lint_and_unit_tests]
   script:
-    - echo "Deploying to staging environment"
+    - echo "Deploying to staging environment..."
     - mkdir public-staging
     - cp -r dist/* public-staging/
   artifacts:
     paths:
       - public-staging
+  # 只在 'develop' 分支上觸發此工作
   only:
     - develop
   environment:
