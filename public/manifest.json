@@ -1,0 +1,37 @@
+{
+  "name": "Flow-OS",
+  "short_name": "Flow-OS",
+  "description": "專注與成長的數位夥伴",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "快速開始 25 分鐘專注",
+      "short_name": "快速專注",
+      "description": "立即開始 25 分鐘專注時間",
+      "url": "/?quick-start=focus",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

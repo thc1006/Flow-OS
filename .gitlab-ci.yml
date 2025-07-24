@@ -1,14 +1,104 @@
-# This file is a template, and might need editing before it works on your project.
-# Full project: https://gitlab.com/pages/plain-html
+image: node:18
 
-image: busybox
+stages:
+  - install
+  - test
+  - build
+  - deploy
 
-pages:
-  stage: deploy
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+
+cache:
+  paths:
+    - .npm/
+    - node_modules/
+
+install_dependencies:
+  stage: install
   script:
-    - echo "The site will be deployed to $CI_PAGES_URL"
+    - npm ci
+  artifacts:
+    paths:
+      - node_modules/
+    expire_in: 1 hour
+
+lint_and_test:
+  stage: test
+  needs: [install_dependencies]
+  script:
+    - npm run lint
+    - npm run type-check
+    - npm run test -- --coverage
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+
+e2e_tests:
+  stage: test
+  needs: [install_dependencies]
+  script:
+    - npm run build
+    - npm start &
+    - sleep 10
+    - npm run test:e2e
+  artifacts:
+    when: always
+    paths:
+      - playwright-report/
+    expire_in: 1 week
+
+accessibility_tests:
+  stage: test
+  needs: [install_dependencies]
+  script:
+    - npm run build
+    - npm start &
+    - sleep 10
+    - npm run test:a11y
+  artifacts:
+    when: always
+    paths:
+      - accessibility-report/
+    expire_in: 1 week
+
+build_app:
+  stage: build
+  needs: [install_dependencies]
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+deploy_pages:
+  stage: deploy
+  needs: [build_app, lint_and_test, e2e_tests, accessibility_tests]
+  script:
+    - mkdir public
+    - cp -r dist/* public/
   artifacts:
     paths:
       - public
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  only:
+    - main
+
+deploy_staging:
+  stage: deploy
+  needs: [build_app, lint_and_test]
+  script:
+    - echo "Deploying to staging environment"
+    - mkdir public-staging
+    - cp -r dist/* public-staging/
+  artifacts:
+    paths:
+      - public-staging
+  only:
+    - develop
+  environment:
+    name: staging
+    url: https://staging.flow-os.example.com
