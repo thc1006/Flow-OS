@@ -23,4 +23,4 @@ pages:
 
   # 僅在程式碼被推送到 'main' 分支時，才執行這個工作
   only:
-    - master
+    - main
