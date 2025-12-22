@@ -367,7 +367,10 @@
             // 取得有預計番茄鐘的任務
             const tasksWithEstimates = state.tasks.filter(t => t.pomodorosEstimated > 0);
             if (tasksWithEstimates.length === 0) {
-                if (estimationChart) estimationChart.destroy();
+                if (estimationChart) {
+                    estimationChart.destroy();
+                    estimationChart = null;
+                }
                 return;
             }
             // 準備圖表資料
@@ -650,7 +653,7 @@
             } else {
                 incompleteTasks.forEach(task => {
                     const taskCard = document.createElement('div');
-                    taskCard.className = 'bg-gray-700 p-3 rounded cursor-move hover:bg-gray-600 transition-colors';
+                    taskCard.className = 'bg-gray-700 p-3 rounded hover:bg-gray-600 transition-colors';
                     taskCard.innerHTML = `
                         <div class="flex items-center gap-2">
                             <span class="text-2xl">${task.icon || '🎯'}</span>
