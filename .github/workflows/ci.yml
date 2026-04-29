@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main, master, develop, 'flow-os-v*']
   pull_request:
-    branches: [main, master]
+    branches: [main, master, 'flow-os-v*']
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
