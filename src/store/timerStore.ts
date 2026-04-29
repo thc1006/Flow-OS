@@ -1,113 +1,142 @@
 import { create } from 'zustand';
 import { eventBus } from '../utils/eventBus';
-import { DataService } from '../utils/database';
+
+export type SessionType = 'focus' | 'shortBreak' | 'longBreak';
 
 interface TimerState {
   isRunning: boolean;
+  sessionType: SessionType;
   currentTime: number;
-  sessionType: 'focus' | 'shortBreak' | 'longBreak';
   focusDuration: number;
   shortBreakDuration: number;
   longBreakDuration: number;
   sessionsCompleted: number;
-  
   startTimer: () => void;
   pauseTimer: () => void;
   resetTimer: () => void;
-  completeSession: () => void;
-  setDuration: (type: 'focus' | 'shortBreak' | 'longBreak', minutes: number) => void;
+  completeSession: () => Promise<void>;
+  setDuration: (type: SessionType, minutes: number) => void;
 }
 
-export const useTimerStore = create<TimerState>((set, get) => {
-  let timerInterval: ReturnType<typeof setInterval> | null = null;
+const TICK_MS = 250;
 
-  const clearExistingInterval = () => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-  };
+let tickHandle: ReturnType<typeof setInterval> | null = null;
+let targetEndMs: number | null = null;
+let realStartMs: number | null = null;
 
-  return {
-    isRunning: false,
-    currentTime: 25 * 60,
-    sessionType: 'focus',
-    focusDuration: 25,
-    shortBreakDuration: 5,
-    longBreakDuration: 15,
-    sessionsCompleted: 0,
+const stopTicker = () => {
+  if (tickHandle !== null) {
+    clearInterval(tickHandle);
+    tickHandle = null;
+  }
+};
 
-    startTimer: () => {
-      clearExistingInterval();
-      const { currentTime } = get();
-      set({ isRunning: true });
-      eventBus.emit('TIMER_START', { duration: currentTime });
-      
-      timerInterval = setInterval(() => {
-        const { currentTime: t } = get();
-        if (t <= 0) {
-          clearExistingInterval();
-          get().completeSession();
-          return;
-        }
-        set({ currentTime: t - 1 });
-      }, 1000);
-    },
+const sessionDurationSec = (s: TimerState): number => {
+  const minutes =
+    s.sessionType === 'focus'
+      ? s.focusDuration
+      : s.sessionType === 'shortBreak'
+        ? s.shortBreakDuration
+        : s.longBreakDuration;
+  return minutes * 60;
+};
 
-    pauseTimer: () => {
-      clearExistingInterval();
-      set({ isRunning: false });
-      eventBus.emit('TIMER_PAUSE', {});
-    },
+export const useTimerStore = create<TimerState>((set, get) => ({
+  isRunning: false,
+  sessionType: 'focus',
+  currentTime: 25 * 60,
+  focusDuration: 25,
+  shortBreakDuration: 5,
+  longBreakDuration: 15,
+  sessionsCompleted: 0,
 
-    resetTimer: () => {
-      clearExistingInterval();
-      const { sessionType, focusDuration, shortBreakDuration, longBreakDuration } = get();
-      const durations = { 
-        focus: focusDuration, 
-        shortBreak: shortBreakDuration, 
-        longBreak: longBreakDuration 
-      };
-      set({ isRunning: false, currentTime: durations[sessionType] * 60 });
-    },
+  startTimer: () => {
+    stopTicker();
+    const { currentTime } = get();
+    const now = Date.now();
+    targetEndMs = now + currentTime * 1000;
+    if (realStartMs === null) realStartMs = now;
+    set({ isRunning: true });
+    eventBus.emit('TIMER_START', { duration: currentTime });
 
-    completeSession: async () => {
-      clearExistingInterval();
-      const { sessionType, focusDuration, shortBreakDuration, longBreakDuration, sessionsCompleted } = get();
-      
-      // 寫入資料庫
-      try {
-        await DataService.addSession({
-          startTime: new Date(Date.now() - ((sessionType === 'focus' ? focusDuration : sessionType === 'shortBreak' ? shortBreakDuration : longBreakDuration) * 60) * 1000),
-          endTime: new Date(),
-          duration: sessionType === 'focus' ? focusDuration * 60 : sessionType === 'shortBreak' ? shortBreakDuration * 60 : longBreakDuration * 60,
-          type: sessionType === 'focus' ? 'focus' : 'break',
-          completed: true
-        });
-      } catch (error) {
-        console.error('Failed to save session:', error);
+    tickHandle = setInterval(() => {
+      if (targetEndMs === null) return;
+      const remainingSec = Math.max(0, Math.ceil((targetEndMs - Date.now()) / 1000));
+      if (remainingSec <= 0) {
+        stopTicker();
+        set({ currentTime: 0 });
+        void get().completeSession();
+        return;
       }
-      
-      set({ isRunning: false });
-
-      if (sessionType === 'focus') {
-        set({ sessionsCompleted: sessionsCompleted + 1 });
-        eventBus.emit('TIMER_COMPLETE', { sessionType: 'focus' });
-        const nextType = (sessionsCompleted + 1) % 4 === 0 ? 'longBreak' : 'shortBreak';
-        const nextDuration = nextType === 'longBreak' ? longBreakDuration : shortBreakDuration;
-        set({ sessionType: nextType, currentTime: nextDuration * 60 });
-      } else {
-        eventBus.emit('TIMER_COMPLETE', { sessionType: 'break' });
-        set({ sessionType: 'focus', currentTime: focusDuration * 60 });
+      if (remainingSec !== get().currentTime) {
+        set({ currentTime: remainingSec });
       }
-    },
+    }, TICK_MS);
+  },
 
-    setDuration: (type, minutes) => {
-      const updates: Partial<TimerState> = {};
-      if (type === 'focus') updates.focusDuration = minutes;
-      if (type === 'shortBreak') updates.shortBreakDuration = minutes;
-      if (type === 'longBreak') updates.longBreakDuration = minutes;
-      set(updates);
+  pauseTimer: () => {
+    stopTicker();
+    targetEndMs = null;
+    set({ isRunning: false });
+    eventBus.emit('TIMER_PAUSE', {});
+  },
+
+  resetTimer: () => {
+    stopTicker();
+    targetEndMs = null;
+    realStartMs = null;
+    const total = sessionDurationSec(get());
+    set({ isRunning: false, currentTime: total });
+  },
+
+  completeSession: async () => {
+    stopTicker();
+    targetEndMs = null;
+    const state = get();
+    const totalSec = sessionDurationSec(state);
+    const startTime = realStartMs ? new Date(realStartMs) : new Date(Date.now() - totalSec * 1000);
+    const endTime = new Date();
+
+    try {
+      const { DataService } = await import('../utils/database');
+      await DataService.addSession({
+        startTime,
+        endTime,
+        duration: totalSec,
+        type: state.sessionType === 'focus' ? 'focus' : 'break',
+        completed: true,
+      });
+    } catch (error) {
+      console.error('Failed to save session:', error);
     }
-  };
-});
+
+    realStartMs = null;
+    set({ isRunning: false });
+
+    if (state.sessionType === 'focus') {
+      const completed = state.sessionsCompleted + 1;
+      const nextType: SessionType = completed % 4 === 0 ? 'longBreak' : 'shortBreak';
+      const nextSec =
+        nextType === 'longBreak'
+          ? state.longBreakDuration * 60
+          : state.shortBreakDuration * 60;
+      set({ sessionsCompleted: completed, sessionType: nextType, currentTime: nextSec });
+      eventBus.emit('TIMER_COMPLETE', { sessionType: 'focus' });
+    } else {
+      set({ sessionType: 'focus', currentTime: state.focusDuration * 60 });
+      eventBus.emit('TIMER_COMPLETE', { sessionType: 'break' });
+    }
+  },
+
+  setDuration: (type, minutes) => {
+    const updates: Partial<TimerState> = {};
+    if (type === 'focus') updates.focusDuration = minutes;
+    if (type === 'shortBreak') updates.shortBreakDuration = minutes;
+    if (type === 'longBreak') updates.longBreakDuration = minutes;
+    set(updates);
+    const s = get();
+    if (!s.isRunning && s.sessionType === type) {
+      set({ currentTime: minutes * 60 });
+    }
+  },
+}));

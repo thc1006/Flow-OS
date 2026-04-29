@@ -1,38 +1,43 @@
-export const registerServiceWorker = async () => {
-  if ('serviceWorker' in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              showUpdateNotification();
-            }
-          });
+export const registerServiceWorker = async (): Promise<void> => {
+  if (!('serviceWorker' in navigator)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      if (!newWorker) return;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          showUpdateNotification();
         }
       });
-      
-      console.log('Service Worker registered successfully');
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-    }
+    });
+  } catch (error) {
+    console.error('Service Worker registration failed:', error);
   }
 };
 
-export const showUpdateNotification = () => {
-  const updateBanner = document.createElement('div');
-  updateBanner.className = 'fixed bottom-4 left-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50 flex justify-between items-center';
-  updateBanner.innerHTML = `
-    <span>有新版本可用！</span>
-    <button onclick="window.location.reload()" class="bg-white text-blue-600 px-3 py-1 rounded text-sm font-semibold">
-      更新
-    </button>
-  `;
-  document.body.appendChild(updateBanner);
-  
-  setTimeout(() => {
-    updateBanner.remove();
-  }, 10000);
+const showUpdateNotification = (): void => {
+  const banner = document.createElement('div');
+  banner.className =
+    'fixed bottom-4 left-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50 flex justify-between items-center';
+  banner.setAttribute('role', 'status');
+  banner.setAttribute('aria-live', 'polite');
+
+  const text = document.createElement('span');
+  text.textContent = '有新版本可用！';
+
+  const button = document.createElement('button');
+  button.textContent = '更新';
+  button.className =
+    'bg-white text-blue-600 px-3 py-1 rounded text-sm font-semibold hover:bg-blue-50';
+  button.addEventListener('click', () => {
+    window.location.reload();
+  });
+
+  banner.appendChild(text);
+  banner.appendChild(button);
+  document.body.appendChild(banner);
+
+  window.setTimeout(() => banner.remove(), 10_000);
 };

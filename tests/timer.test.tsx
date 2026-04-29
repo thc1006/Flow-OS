@@ -1,38 +1,45 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Timer from '../src/components/Timer';
+import { useTimerStore } from '../src/store/timerStore';
 
 describe('Timer Component', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.useFakeTimers();
+    useTimerStore.setState({
+      isRunning: false,
+      sessionType: 'focus',
+      currentTime: 25 * 60,
+      sessionsCompleted: 0,
+    });
   });
 
-  it('should render timer with initial state', () => {
+  afterEach(() => {
+    act(() => {
+      useTimerStore.getState().resetTimer();
+    });
+    vi.useRealTimers();
+  });
+
+  it('renders with initial 25:00 focus state', () => {
     render(<Timer />);
-    
-    expect(screen.getByText('25:00')).toBeInTheDocument();
+    expect(screen.getByLabelText('剩餘時間 25:00')).toBeInTheDocument();
     expect(screen.getByText('專注時間')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '開始計時' })).toBeInTheDocument();
   });
 
-  it('should start timer when start button is clicked', async () => {
+  it('toggles to pause button when start is clicked', () => {
     render(<Timer />);
-    
-    const startButton = screen.getByRole('button', { name: '開始計時' });
-    fireEvent.click(startButton);
-    
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: '暫停計時' })).toBeInTheDocument();
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: '開始計時' }));
     });
+    expect(screen.getByRole('button', { name: '暫停計時' })).toBeInTheDocument();
   });
 
-  it('should be accessible', async () => {
+  it('exposes accessible labels and a polite status region', () => {
     render(<Timer />);
-    
-    // 檢查 ARIA 標籤
     expect(screen.getByLabelText(/剩餘時間/)).toBeInTheDocument();
-    
-    // 檢查按鈕焦點
+    expect(screen.getByRole('status')).toBeInTheDocument();
     const startButton = screen.getByRole('button', { name: '開始計時' });
     startButton.focus();
     expect(startButton).toHaveFocus();
