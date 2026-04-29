@@ -1,64 +1,61 @@
-Example plain HTML site using GitLab Pages.
+# Flow-OS
 
-Learn more about GitLab Pages at https://pages.gitlab.io and the official
-documentation https://docs.gitlab.com/ce/user/project/pages/.
+專注與成長的數位夥伴 — 一個輕量、可離線、可自託管的番茄鐘 PWA。
 
----
+## Quick start
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
-
-- [GitLab CI](#gitlab-ci)
-- [GitLab User or Group Pages](#gitlab-user-or-group-pages)
-- [Did you fork this project?](#did-you-fork-this-project)
-- [Troubleshooting](#troubleshooting)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-## GitLab CI
-
-This project's static Pages are built by [GitLab CI][ci], following the steps
-defined in [`.gitlab-ci.yml`](.gitlab-ci.yml):
-
-```
-image: busybox
-
-pages:
-  stage: deploy
-  script:
-  - echo 'Nothing to do...'
-  artifacts:
-    paths:
-    - public
-    expire_in: 1 day
-  rules:
-    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+```bash
+npm ci
+npm run dev          # http://localhost:3000
+npm run build        # 產出 dist/
+npm run preview      # 預覽 dist/
 ```
 
-The above example expects to put all your HTML files in the `public/` directory.
+## Scripts
 
-## GitLab User or Group Pages
+| script | 用途 |
+|---|---|
+| `dev` | Vite dev server |
+| `build` | Production build (dist/) |
+| `preview` | Static preview of dist/ |
+| `start` | Alias of preview, for CI server |
+| `lint` | ESLint on src/ |
+| `type-check` | tsc --noEmit |
+| `test` | Vitest (unit + jsdom) |
+| `test:e2e` | Playwright (含 a11y) |
 
-To use this project as your user/group website, you will need one additional
-step: just rename your project to `namespace.gitlab.io`, where `namespace` is
-your `username` or `groupname`. This can be done by navigating to your
-project's **Settings**.
+## Architecture
 
-Read more about [user/group Pages][userpages] and [project Pages][projpages].
+```
+src/
+├── components/Timer.tsx      # 番茄鐘 UI（含 ARIA + 進度環）
+├── store/timerStore.ts       # Zustand store; Date.now() 基準避開 background-tab drift
+├── utils/
+│   ├── eventBus.ts           # 型別化事件總線（含 handler 隔離）
+│   ├── database.ts           # Dexie schema (sessions/tasks/achievements/settings)
+│   ├── interactions.ts       # Confetti 慶祝動畫（lazy import）
+│   └── pwa.ts                # Service Worker 註冊與更新提示
+└── main.tsx, App.tsx, index.css
+public/
+├── manifest.json             # PWA manifest
+└── sw.js                     # Service Worker（cache-first / network-first / SWR 三策略）
+```
 
-## Did you fork this project?
+### 設計重點
 
-If you forked this project for your own use, please go to your project's
-**Settings** and remove the forking relationship, which won't be necessary
-unless you want to contribute back to the upstream project.
+- **計時器無漂移**：`setInterval` 不直接遞減；每 tick 從 `Date.now()` 重算剩餘秒數。背景分頁回前景後可即時校正。
+- **ARIA 不噪音**：主數字 `aria-live="off"`，狀態變化才透過隱藏 `role="status"` 區宣告。
+- **動畫與音效尊重 `prefers-reduced-motion`**：confetti 自動跳過。
+- **離線優先**：靜態資源 cache-first；其他 network-first，回退快取。
 
-## Troubleshooting
+## PWA 圖示
 
-1. CSS is missing! That means that you have wrongly set up the CSS URL in your
-   HTML files. Have a look at the [index.html] for an example.
+`manifest.json` 期望 `/icon-192x192.png` 與 `/icon-512x512.png`；目前 repo 暫未含圖檔，請自行於 `public/` 補上後 manifest 才會通過 Lighthouse PWA 檢查。
 
-[ci]: https://about.gitlab.com/gitlab-ci/
-[index.html]: https://gitlab.com/pages/plain-html/blob/master/public/index.html
-[userpages]: https://docs.gitlab.com/ce/user/project/pages/introduction.html#user-or-group-pages
-[projpages]: https://docs.gitlab.com/ce/user/project/pages/introduction.html#project-pages
+## Cloud sync (optional, scaffold)
+
+Supabase 同步邏輯在 v4 已移除，等待後續以「OAuth + 後端 relay」方式重新實作。範本：見 `.env.example`。
+
+## License
+
+Internal.
