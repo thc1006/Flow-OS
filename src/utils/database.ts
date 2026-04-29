@@ -38,7 +38,6 @@ export interface Settings {
   longBreakDuration: number;
   soundEnabled: boolean;
   notificationsEnabled: boolean;
-  theme: 'light' | 'dark' | 'auto';
   focusMode: boolean;
 }
 
@@ -68,8 +67,7 @@ export class FlowOSDatabase extends Dexie {
       longBreakDuration: 15,
       soundEnabled: true,
       notificationsEnabled: true,
-      theme: 'auto',
-      focusMode: false
+      focusMode: false,
     });
   }
 }

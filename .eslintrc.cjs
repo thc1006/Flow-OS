@@ -14,4 +14,13 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/no-explicit-any': 'off',
   },
+  overrides: [
+    {
+      files: ['tests/**/*.{ts,tsx}', 'e2e/**/*.{ts,tsx}'],
+      env: { node: true, browser: true },
+      rules: {
+        '@typescript-eslint/no-non-null-assertion': 'off',
+      },
+    },
+  ],
 };

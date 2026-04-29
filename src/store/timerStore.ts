@@ -129,14 +129,22 @@ export const useTimerStore = create<TimerState>((set, get) => ({
   },
 
   setDuration: (type, minutes) => {
+    const newTotalSec = minutes * 60;
     const updates: Partial<TimerState> = {};
     if (type === 'focus') updates.focusDuration = minutes;
     if (type === 'shortBreak') updates.shortBreakDuration = minutes;
     if (type === 'longBreak') updates.longBreakDuration = minutes;
     set(updates);
+
     const s = get();
-    if (!s.isRunning && s.sessionType === type) {
-      set({ currentTime: minutes * 60 });
+    if (s.isRunning || s.sessionType !== type) return;
+
+    if (realStartMs === null) {
+      // truly idle (fresh or just reset) — sync display to new total
+      set({ currentTime: newTotalSec });
+    } else {
+      // paused mid-session — keep elapsed progress; clamp if shrunk
+      set({ currentTime: Math.min(s.currentTime, newTotalSec) });
     }
   },
 }));
