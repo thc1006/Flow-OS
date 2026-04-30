@@ -36,10 +36,11 @@ describe('Timer Component', () => {
     expect(screen.getByRole('button', { name: '暫停計時' })).toBeInTheDocument();
   });
 
-  it('exposes accessible labels and a polite status region', () => {
+  it('exposes accessible labels and at least one polite status region', () => {
     render(<Timer />);
     expect(screen.getByLabelText(/剩餘時間/)).toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    // Multiple status regions: sr-only run-state announcer + visible notice strip
+    expect(screen.getAllByRole('status').length).toBeGreaterThanOrEqual(1);
     const startButton = screen.getByRole('button', { name: '開始計時' });
     startButton.focus();
     expect(startButton).toHaveFocus();

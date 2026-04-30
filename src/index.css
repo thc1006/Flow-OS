@@ -30,6 +30,17 @@ body {
 /* Decorative animations: scale, color tweens, ambient bounces.
    Informational animations: progress ring (state) keeps running.
    Specificity stays at 0 via :where(); per-utility motion-reduce works. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :where([data-decorative], [data-decorative] *) {
     animation: none;

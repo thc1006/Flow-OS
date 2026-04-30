@@ -15,12 +15,28 @@ test.describe('Flow-OS accessibility', () => {
     });
   });
 
-  test('start button is reachable via keyboard and toggles to pause', async ({ page }) => {
-    const startButton = page.getByRole('button', { name: '開始計時' });
-    await startButton.focus();
-    await expect(startButton).toBeFocused();
+  test('primary button toggles between Start and Pause as a single node', async ({ page }) => {
+    const button = page.getByRole('button', { name: /開始計時|暫停計時/ });
+    await expect(button).toHaveAccessibleName('開始計時');
+    await button.focus();
+    await expect(button).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('button', { name: '暫停計時' })).toBeVisible();
+    // same DOM node, accessible name flipped — no nodes added/removed
+    await expect(button).toHaveAccessibleName('暫停計時');
+  });
+
+  test('reset is armed-then-confirmed mid-session (no instant data loss)', async ({ page }) => {
+    const start = page.getByRole('button', { name: '開始計時' });
+    await start.click();
+    // wait long enough for currentTime to drop below totalSeconds
+    await page.waitForTimeout(1100);
+    const pause = page.getByRole('button', { name: '暫停計時' });
+    await pause.click();
+    const reset = page.getByRole('button', { name: '重設計時' });
+    await reset.click();
+    // first click arms; the button label flips to confirm and a notice appears
+    await expect(page.getByRole('button', { name: '再次按下確認重設' })).toBeVisible();
+    await expect(page.getByRole('status').getByText(/再按一次/)).toBeVisible();
   });
 
   test('main heading is Flow-OS', async ({ page }) => {
@@ -32,6 +48,15 @@ test.describe('Flow-OS accessibility', () => {
     await page.reload();
     await injectAxe(page);
     await checkA11y(page);
+  });
+
+  test('dark colour scheme passes WCAG 2 A/AA', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.reload();
+    await injectAxe(page);
+    await checkA11y(page, undefined, {
+      axeOptions: { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] } },
+    });
   });
 });
 
@@ -87,11 +112,24 @@ test.describe('Flow-OS responsive layout', () => {
   test.describe('landscape phone (touch + coarse pointer)', () => {
     test.use({ hasTouch: true, isMobile: true, viewport: { width: 932, height: 430 } });
 
-    test('hides the global header to reclaim vertical space', async ({ page }) => {
+    test('visually hides the h1 but keeps it for screen readers (sr-only)', async ({ page }) => {
       await page.goto('./');
-      // h1 still in DOM but hidden by landscape-compact:hidden
-      await expect(page.locator('h1')).toBeHidden();
-      // ring placed beside clock (two-column compact layout) — ring x > clock x
+      const h1 = page.locator('h1');
+      // Still in the accessibility tree (has text), just visually clipped.
+      await expect(h1).toHaveText('Flow-OS');
+      const visualSize = await h1.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return { w: rect.width, h: rect.height };
+      });
+      // sr-only collapses the rendered box to 1×1 px
+      expect(visualSize.w).toBeLessThanOrEqual(2);
+      expect(visualSize.h).toBeLessThanOrEqual(2);
+
+      // Tagline below h1 is fully removed visually on landscape
+      const tagline = page.locator('header p');
+      await expect(tagline).toBeHidden();
+
+      // ring placed beside clock (two-column compact layout)
       const clock = await page.getByLabel(/剩餘時間/).boundingBox();
       const ring = await page.locator('svg:visible').first().boundingBox();
       expect(ring!.x).toBeGreaterThan(clock!.x);
@@ -105,7 +143,12 @@ test.describe('Flow-OS responsive layout', () => {
     // Header should remain visible — proof that the pointer:coarse guard works.
     await page.setViewportSize({ width: 932, height: 430 });
     await page.goto('./');
-    await expect(page.locator('h1')).toBeVisible();
+    const h1 = page.locator('h1');
+    await expect(h1).toBeVisible();
+    const box = await h1.boundingBox();
+    // visible h1 has a real rendered box, not the 1×1 sr-only collapse
+    expect(box!.width).toBeGreaterThan(40);
+    expect(box!.height).toBeGreaterThan(10);
   });
 
   for (const [label, viewport] of [
