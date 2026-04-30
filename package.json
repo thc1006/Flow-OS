@@ -9,6 +9,8 @@
     "preview": "vite preview --port 3000 --host",
     "start": "vite preview --port 3000 --host",
     "lint": "eslint src tests e2e --ext .ts,.tsx",
+    "format": "prettier --check \"{src,tests,e2e}/**/*.{ts,tsx,css}\" \"*.{json,md,cjs,html}\"",
+    "format:write": "prettier --write \"{src,tests,e2e}/**/*.{ts,tsx,css}\" \"*.{json,md,cjs,html}\"",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

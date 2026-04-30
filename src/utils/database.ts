@@ -49,12 +49,12 @@ export class FlowOSDatabase extends Dexie {
 
   constructor() {
     super('FlowOSDatabase');
-    
+
     this.version(1).stores({
       sessions: '++id, startTime, endTime, type, completed, taskId',
       tasks: '++id, title, completed, createdAt, priority',
       achievements: '++id, name, unlockedAt',
-      settings: '++id'
+      settings: '++id',
     });
 
     this.on('populate', () => this.populate());
@@ -80,10 +80,7 @@ export class DataService {
   }
 
   static async getSessionsInRange(startDate: Date, endDate: Date) {
-    return await db.sessions
-      .where('startTime')
-      .between(startDate, endDate)
-      .toArray();
+    return await db.sessions.where('startTime').between(startDate, endDate).toArray();
   }
 
   static async getTodayStats() {
@@ -95,19 +92,16 @@ export class DataService {
     const sessions = await db.sessions
       .where('startTime')
       .between(today, tomorrow)
-      .and(session => session.completed)
+      .and((session) => session.completed)
       .toArray();
 
-    const focusSessions = sessions.filter(s => s.type === 'focus');
+    const focusSessions = sessions.filter((s) => s.type === 'focus');
     const totalFocusTime = focusSessions.reduce((sum, s) => sum + s.duration, 0);
 
     return {
       focusSessions: focusSessions.length,
       totalFocusTime: Math.round(totalFocusTime / 60),
-      completedTasks: await db.tasks
-        .where('completedAt')
-        .between(today, tomorrow)
-        .count()
+      completedTasks: await db.tasks.where('completedAt').between(today, tomorrow).count(),
     };
   }
 
@@ -118,7 +112,7 @@ export class DataService {
   static async completeTask(taskId: number) {
     return await db.tasks.update(taskId, {
       completed: true,
-      completedAt: new Date()
+      completedAt: new Date(),
     });
   }
 

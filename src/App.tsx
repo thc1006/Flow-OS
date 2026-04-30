@@ -7,9 +7,7 @@ const App: React.FC = () => {
     const handler = (data: { sessionType: 'focus' | 'break' }) => {
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       const message =
-        data.sessionType === 'focus'
-          ? '專注時間結束！該休息了 🎉'
-          : '休息結束！準備開始專注 💪';
+        data.sessionType === 'focus' ? '專注時間結束！該休息了 🎉' : '休息結束！準備開始專注 💪';
       try {
         new Notification('Flow-OS', { body: message, tag: 'flow-os-timer' });
       } catch (error) {
@@ -39,9 +37,7 @@ const App: React.FC = () => {
         <h1 className="font-bold text-gray-800 dark:text-white text-fluid-xl leading-tight">
           Flow-OS
         </h1>
-        <p className="mt-1 text-fluid-sm text-gray-600 dark:text-gray-300">
-          專注與成長的數位夥伴
-        </p>
+        <p className="mt-1 text-fluid-sm text-gray-600 dark:text-gray-300">專注與成長的數位夥伴</p>
       </header>
 
       <main

@@ -19,8 +19,8 @@ body {
   /* dvh = dynamic viewport height; respects mobile browser chrome */
   min-height: 100dvh;
   /* honour iOS notches / Android gesture bars */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 /* Reduced motion: scope to decorative-only animations.

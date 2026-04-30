@@ -117,9 +117,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       const completed = state.sessionsCompleted + 1;
       const nextType: SessionType = completed % 4 === 0 ? 'longBreak' : 'shortBreak';
       const nextSec =
-        nextType === 'longBreak'
-          ? state.longBreakDuration * 60
-          : state.shortBreakDuration * 60;
+        nextType === 'longBreak' ? state.longBreakDuration * 60 : state.shortBreakDuration * 60;
       set({ sessionsCompleted: completed, sessionType: nextType, currentTime: nextSec });
       eventBus.emit('TIMER_COMPLETE', { sessionType: 'focus' });
     } else {

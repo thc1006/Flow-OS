@@ -13,16 +13,16 @@ npm run preview      # 預覽 dist/
 
 ## Scripts
 
-| script | 用途 |
-|---|---|
-| `dev` | Vite dev server |
-| `build` | Production build (dist/) |
-| `preview` | Static preview of dist/ |
-| `start` | Alias of preview, for CI server |
-| `lint` | ESLint on src/ |
-| `type-check` | tsc --noEmit |
-| `test` | Vitest (unit + jsdom) |
-| `test:e2e` | Playwright (含 a11y) |
+| script       | 用途                            |
+| ------------ | ------------------------------- |
+| `dev`        | Vite dev server                 |
+| `build`      | Production build (dist/)        |
+| `preview`    | Static preview of dist/         |
+| `start`      | Alias of preview, for CI server |
+| `lint`       | ESLint on src/                  |
+| `type-check` | tsc --noEmit                    |
+| `test`       | Vitest (unit + jsdom)           |
+| `test:e2e`   | Playwright (含 a11y)            |
 
 ## Architecture
 

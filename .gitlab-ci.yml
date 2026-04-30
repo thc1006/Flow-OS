@@ -32,6 +32,7 @@ lint_and_unit_tests:
   timeout: 10m
   needs: [install_dependencies]
   script:
+    - npm run format
     - npm run lint
     - npm run type-check
     - npm run test -- --coverage

@@ -62,9 +62,7 @@ test.describe('Flow-OS responsive layout', () => {
     });
   }
 
-  test('lg viewport renders the progress ring beside the clock (two-column)', async ({
-    page,
-  }) => {
+  test('lg viewport renders the progress ring beside the clock (two-column)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('./');
     const clock = await page.getByLabel(/剩餘時間/).boundingBox();

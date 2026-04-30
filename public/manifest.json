@@ -8,7 +8,14 @@
   "background_color": "#ffffff",
   "theme_color": "#3B82F6",
   "lang": "zh-Hant",
-  "icons": [],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
   "categories": ["productivity", "utilities"],
   "shortcuts": [
     {
