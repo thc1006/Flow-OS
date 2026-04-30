@@ -32,8 +32,13 @@ module.exports = {
   plugins: [
     require('@tailwindcss/container-queries'),
     function ({ addVariant }) {
-      // Phones rotated to landscape: very short height + wide aspect.
-      addVariant('landscape-compact', '@media (max-height: 500px) and (orientation: landscape)');
+      // Phones rotated to landscape: short height + landscape + touch input.
+      // The `pointer: coarse` clause prevents desktop users who shrink their
+      // window vertically from being treated as a phone.
+      addVariant(
+        'landscape-compact',
+        '@media (max-height: 500px) and (orientation: landscape) and (pointer: coarse)',
+      );
     },
   ],
 };

@@ -86,22 +86,66 @@ test.describe('Flow-OS responsive layout', () => {
     expect(ring!.y).toBeGreaterThan(clock!.y + clock!.height);
   });
 
-  test('landscape phone hides the global header to reclaim vertical space', async ({ page }) => {
-    await page.setViewportSize({ width: 932, height: 430 });
-    await page.goto('./');
-    // h1 still in DOM but hidden by landscape-compact:hidden
-    await expect(page.locator('h1')).toBeHidden();
-    // ring placed beside clock (two-column compact layout) — ring x > clock x
-    const clock = await page.getByLabel(/剩餘時間/).boundingBox();
-    const ring = await page.locator('svg:visible').first().boundingBox();
-    expect(ring!.x).toBeGreaterThan(clock!.x);
+  test.describe('landscape phone (touch + coarse pointer)', () => {
+    test.use({ hasTouch: true, isMobile: true, viewport: { width: 932, height: 430 } });
+
+    test('hides the global header to reclaim vertical space', async ({ page }) => {
+      await page.goto('./');
+      // h1 still in DOM but hidden by landscape-compact:hidden
+      await expect(page.locator('h1')).toBeHidden();
+      // ring placed beside clock (two-column compact layout) — ring x > clock x
+      const clock = await page.getByLabel(/剩餘時間/).boundingBox();
+      const ring = await page.locator('svg:visible').first().boundingBox();
+      expect(ring!.x).toBeGreaterThan(clock!.x);
+    });
   });
 
-  test('single SVG renders in DOM (no duplicated ring nodes)', async ({ page }) => {
+  test('desktop browser shrunk to short height does NOT activate landscape-compact', async ({
+    page,
+  }) => {
+    // Same dimensions as a landscape phone but with mouse pointer (fine).
+    // Header should remain visible — proof that the pointer:coarse guard works.
+    await page.setViewportSize({ width: 932, height: 430 });
+    await page.goto('./');
+    await expect(page.locator('h1')).toBeVisible();
+  });
+
+  for (const [label, viewport] of [
+    ['lg', { width: 1280, height: 720 }],
+    ['sm', { width: 414, height: 896 }],
+    ['xs', { width: 360, height: 640 }],
+    ['landscape', { width: 932, height: 430 }],
+  ] as const) {
+    test(`exactly one SVG in DOM at ${label} viewport`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto('./');
+      const svgCount = await page.locator('svg').count();
+      expect(svgCount).toBe(1);
+    });
+  }
+
+  test('clock digits use the fluid display font + tight letter spacing', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('./');
-    const svgCount = await page.locator('svg').count();
-    expect(svgCount).toBe(1);
+    const clock = page.getByLabel(/剩餘時間/);
+    const styles = await clock.evaluate((el) => {
+      const cs = window.getComputedStyle(el);
+      return {
+        fontSize: cs.fontSize,
+        lineHeight: cs.lineHeight,
+        letterSpacing: cs.letterSpacing,
+        fontFamily: cs.fontFamily,
+      };
+    });
+    // clamp(3rem, 8vw + 1rem, 8rem) at width 1280 → 8*12.8 + 16 = 118.4px, but capped at 8rem = 128px.
+    // Use a generous range — the point is "noticeably bigger than body copy".
+    const px = parseFloat(styles.fontSize);
+    expect(px).toBeGreaterThan(80);
+    expect(px).toBeLessThanOrEqual(128);
+    // letterSpacing -0.02em ≈ -1.6 to -2.6px in this size range
+    expect(styles.letterSpacing.startsWith('-')).toBe(true);
+    // tabular-nums + monospace → some monospace family present
+    expect(styles.fontFamily.toLowerCase()).toMatch(/mono|courier|menlo|consolas|ui-monospace/);
   });
 
   test('Fitts: primary CTA wider than reset button', async ({ page }) => {

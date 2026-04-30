@@ -77,7 +77,10 @@ const Timer: React.FC = () => {
   return (
     // @container with named scope `timer` lets us style based on the wrapper's
     // own width, not the viewport — the same component works in a sidebar.
-    <div className="@container/timer w-full max-w-5xl">
+    // `[container-type:inline-size]` is set explicitly as a defence: if the
+    // plugin's default ever changes or another rule overrides container-type,
+    // this still pins the timer to size-based queries.
+    <div className="@container/timer [container-type:inline-size] w-full max-w-5xl">
       <div
         className="
           grid w-full
