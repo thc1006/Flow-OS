@@ -1,6 +1,8 @@
 # Flow-OS
 
-專注與成長的數位夥伴 — 一個輕量、可離線、可自託管的番茄鐘 PWA。
+專注與成長的數位夥伴 — 一個輕量、可離線的番茄鐘 PWA。
+
+🔗 線上版本：<https://thc1006.github.io/Flow-OS/>
 
 ## Quick start
 
@@ -13,30 +15,33 @@ npm run preview      # 預覽 dist/
 
 ## Scripts
 
-| script       | 用途                            |
-| ------------ | ------------------------------- |
-| `dev`        | Vite dev server                 |
-| `build`      | Production build (dist/)        |
-| `preview`    | Static preview of dist/         |
-| `start`      | Alias of preview, for CI server |
-| `lint`       | ESLint on src/                  |
-| `type-check` | tsc --noEmit                    |
-| `test`       | Vitest (unit + jsdom)           |
-| `test:e2e`   | Playwright (含 a11y)            |
+| script         | 用途                                       |
+| -------------- | ------------------------------------------ |
+| `dev`          | Vite dev server                            |
+| `build`        | Production build (dist/)                   |
+| `preview`      | Static preview of dist/                    |
+| `start`        | Alias of preview, for CI server            |
+| `lint`         | ESLint on src/, tests/, e2e/               |
+| `format`       | Prettier check (read-only, used by CI)     |
+| `format:write` | Prettier write                             |
+| `type-check`   | tsc --noEmit                               |
+| `test`         | Vitest (unit + jsdom)                      |
+| `test:e2e`     | Playwright (含 a11y + responsive viewport) |
 
 ## Architecture
 
 ```
 src/
-├── components/Timer.tsx      # 番茄鐘 UI（含 ARIA + 進度環）
+├── components/Timer.tsx      # 番茄鐘 UI（grid-area + container queries）
 ├── store/timerStore.ts       # Zustand store; Date.now() 基準避開 background-tab drift
 ├── utils/
-│   ├── eventBus.ts           # 型別化事件總線（含 handler 隔離）
-│   ├── database.ts           # Dexie schema (sessions/tasks/achievements/settings)
+│   ├── eventBus.ts           # 型別化事件總線（TIMER_START/PAUSE/COMPLETE）
+│   ├── database.ts           # Dexie schema — 只存 completed sessions
 │   ├── interactions.ts       # Confetti 慶祝動畫（lazy import）
-│   └── pwa.ts                # Service Worker 註冊與更新提示
+│   └── pwa.ts                # Service Worker 註冊與安全更新流程
 └── main.tsx, App.tsx, index.css
 public/
+├── favicon.svg               # Brand mark
 ├── manifest.json             # PWA manifest
 └── sw.js                     # Service Worker（cache-first / network-first / SWR 三策略）
 ```
@@ -44,17 +49,24 @@ public/
 ### 設計重點
 
 - **計時器無漂移**：`setInterval` 不直接遞減；每 tick 從 `Date.now()` 重算剩餘秒數。背景分頁回前景後可即時校正。
-- **ARIA 不噪音**：主數字 `aria-live="off"`，狀態變化才透過隱藏 `role="status"` 區宣告。
-- **動畫與音效尊重 `prefers-reduced-motion`**：confetti 自動跳過。
-- **離線優先**：靜態資源 cache-first；其他 network-first，回退快取。
+- **Fluid responsive**：字級、間距、進度環尺寸都是 `clamp()`，配合 `@container/timer` 容器查詢——
+  Timer 元件可嵌入任何寬度的容器而不依賴 viewport breakpoint。
+- **ARIA 不噪音**：主數字不掛 live region，狀態變化才透過隱藏 `role="status"` 區宣告。
+- **動畫尊重 `prefers-reduced-motion`**：以 `[data-decorative]` 區分「裝飾」與「資訊」動畫，
+  不使用 `!important`。
+- **離線優先**：SW 對靜態資源用 cache-first、API 用 network-first、CDN 用 SWR；版本升級時
+  以 `controllerchange` 安全 reload（首次安裝不誤觸）。
+- **無障礙**：所有按鈕色階 ≥ WCAG 2 AA 對比，觸控目標 ≥ 44px (WCAG 2.5.5 AAA)，
+  session 用色 + icon 雙線索，不依賴單一感官。
 
-## PWA 圖示
+## CI
 
-`manifest.json` 期望 `/icon-192x192.png` 與 `/icon-512x512.png`；目前 repo 暫未含圖檔，請自行於 `public/` 補上後 manifest 才會通過 Lighthouse PWA 檢查。
+| Platform | Workflow                   | Badge                                                  |
+| -------- | -------------------------- | ------------------------------------------------------ |
+| GitHub   | `.github/workflows/ci.yml` | Lint / type-check / Vitest / Playwright / Pages deploy |
+| GitLab   | `.gitlab-ci.yml`           | 同步 mirror，含 cobertura coverage                     |
 
-## Cloud sync (optional, scaffold)
-
-Supabase 同步邏輯在 v4 已移除，等待後續以「OAuth + 後端 relay」方式重新實作。範本：見 `.env.example`。
+兩平台共用同一份 npm scripts，一邊綠 = 另一邊綠。Concurrency rule 已修過 runner queue 死鎖。
 
 ## License
 

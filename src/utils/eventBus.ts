@@ -2,9 +2,6 @@ type EventMap = {
   TIMER_START: { duration: number };
   TIMER_PAUSE: Record<string, never>;
   TIMER_COMPLETE: { sessionType: 'focus' | 'break' };
-  TASK_COMPLETE: { taskId: string };
-  ACHIEVEMENT_UNLOCKED: { achievementId: string; points: number };
-  PLANT_GROWTH: { level: number };
 };
 
 type EventHandler<T> = (data: T) => void;
