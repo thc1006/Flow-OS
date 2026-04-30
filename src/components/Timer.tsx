@@ -228,7 +228,10 @@ const Timer: React.FC = () => {
         </div>
 
         {/* RING — single DOM, relocated by grid-area on @lg/timer */}
-        <div className="relative shrink-0 w-fluid-ring h-fluid-ring [grid-area:ring]">
+        <div
+          data-testid="progress-ring"
+          className="relative shrink-0 w-fluid-ring h-fluid-ring [grid-area:ring]"
+        >
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
             <circle
               cx="50"

@@ -138,11 +138,62 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     if (s.isRunning || s.sessionType !== type) return;
 
     if (realStartMs === null) {
-      // truly idle (fresh or just reset) — sync display to new total
       set({ currentTime: newTotalSec });
     } else {
-      // paused mid-session — keep elapsed progress; clamp if shrunk
       set({ currentTime: Math.min(s.currentTime, newTotalSec) });
     }
   },
 }));
+
+// Persistence boundary — kept out of the store so the store stays pure
+// and synchronous. Hydrate once on app boot; persist whenever any of the
+// three durations change.
+export const hydrateDurationsFromDb = async (): Promise<void> => {
+  try {
+    const { DataService } = await import('../utils/database');
+    const settings = await DataService.getSettings();
+    const s = useTimerStore.getState();
+    useTimerStore.setState({
+      focusDuration: settings.focusDuration,
+      shortBreakDuration: settings.shortBreakDuration,
+      longBreakDuration: settings.longBreakDuration,
+      currentTime: s.isRunning
+        ? s.currentTime
+        : (s.sessionType === 'focus'
+            ? settings.focusDuration
+            : s.sessionType === 'shortBreak'
+              ? settings.shortBreakDuration
+              : settings.longBreakDuration) * 60,
+    });
+  } catch (error) {
+    console.warn('hydrateDurationsFromDb failed:', error);
+  }
+};
+
+// Persist on every change. Writing through to Dexie is async but we don't
+// need to await it from the UI thread — the next read (hydrate on reload)
+// will block on whatever is in the queue. Coalescing isn't needed because
+// the user-visible event rate (per-input commit) is already low.
+export const subscribeDurationPersistence = (): (() => void) => {
+  return useTimerStore.subscribe((state, prev) => {
+    if (
+      state.focusDuration === prev.focusDuration &&
+      state.shortBreakDuration === prev.shortBreakDuration &&
+      state.longBreakDuration === prev.longBreakDuration
+    ) {
+      return;
+    }
+    void (async () => {
+      try {
+        const { DataService } = await import('../utils/database');
+        await DataService.saveSettings({
+          focusDuration: state.focusDuration,
+          shortBreakDuration: state.shortBreakDuration,
+          longBreakDuration: state.longBreakDuration,
+        });
+      } catch (error) {
+        console.warn('saveSettings failed:', error);
+      }
+    })();
+  });
+};

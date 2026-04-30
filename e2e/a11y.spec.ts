@@ -91,7 +91,7 @@ test.describe('Flow-OS responsive layout', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('./');
     const clock = await page.getByLabel(/剩餘時間/).boundingBox();
-    const ring = await page.locator('svg:visible').first().boundingBox();
+    const ring = await page.getByTestId('progress-ring').boundingBox();
     expect(clock).not.toBeNull();
     expect(ring).not.toBeNull();
     // ring should be to the RIGHT of the clock (x-axis), confirming two-column layout
@@ -102,7 +102,7 @@ test.describe('Flow-OS responsive layout', () => {
     await page.setViewportSize({ width: 414, height: 896 });
     await page.goto('./');
     const clock = await page.getByLabel(/剩餘時間/).boundingBox();
-    const ring = await page.locator('svg:visible').first().boundingBox();
+    const ring = await page.getByTestId('progress-ring').boundingBox();
     expect(clock).not.toBeNull();
     expect(ring).not.toBeNull();
     // ring sits BELOW the clock vertically
@@ -131,7 +131,7 @@ test.describe('Flow-OS responsive layout', () => {
 
       // ring placed beside clock (two-column compact layout)
       const clock = await page.getByLabel(/剩餘時間/).boundingBox();
-      const ring = await page.locator('svg:visible').first().boundingBox();
+      const ring = await page.getByTestId('progress-ring').boundingBox();
       expect(ring!.x).toBeGreaterThan(clock!.x);
     });
   });
@@ -157,11 +157,13 @@ test.describe('Flow-OS responsive layout', () => {
     ['xs', { width: 360, height: 640 }],
     ['landscape', { width: 932, height: 430 }],
   ] as const) {
-    test(`exactly one SVG in DOM at ${label} viewport`, async ({ page }) => {
+    test(`exactly one progress ring in DOM at ${label} viewport`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto('./');
-      const svgCount = await page.locator('svg').count();
-      expect(svgCount).toBe(1);
+      // The Timer's progress ring is the only one we own; the gear icon
+      // and any other inline SVGs (favicon, etc.) are siblings, not duplicates.
+      const ringCount = await page.getByTestId('progress-ring').count();
+      expect(ringCount).toBe(1);
     });
   }
 

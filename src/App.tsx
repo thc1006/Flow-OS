@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Timer from './components/Timer';
+import SettingsDrawer from './components/SettingsDrawer';
 import { eventBus } from './utils/eventBus';
+import { hydrateDurationsFromDb, subscribeDurationPersistence } from './store/timerStore';
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -11,6 +13,13 @@ const INSTALL_DISMISS_KEY = 'flow-os.install-dismissed-until';
 const INSTALL_DISMISS_DAYS = 30;
 
 const App: React.FC = () => {
+  // Hydrate persisted durations on first mount; subscribe for write-through
+  // on any future change. The unsubscribe runs on unmount.
+  useEffect(() => {
+    void hydrateDurationsFromDb();
+    return subscribeDurationPersistence();
+  }, []);
+
   useEffect(() => {
     const handler = (data: { sessionType: 'focus' | 'break' }) => {
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -26,9 +35,9 @@ const App: React.FC = () => {
     return () => eventBus.off('TIMER_COMPLETE', handler);
   }, []);
 
-  // PWA install prompt — captured for our own button. We respect a
-  // 30-day "I don't want this nag" sentinel kept in localStorage so a
-  // user who dismissed once isn't pestered every visit.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // PWA install prompt
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   useEffect(() => {
     const dismissedUntil = Number(localStorage.getItem(INSTALL_DISMISS_KEY) ?? 0);
@@ -57,7 +66,6 @@ const App: React.FC = () => {
       await installPrompt.prompt();
       const { outcome } = await installPrompt.userChoice;
       if (outcome === 'dismissed') {
-        // user said no via the native dialog: snooze
         const until = Date.now() + INSTALL_DISMISS_DAYS * 24 * 60 * 60 * 1000;
         localStorage.setItem(INSTALL_DISMISS_KEY, String(until));
       }
@@ -83,7 +91,7 @@ const App: React.FC = () => {
     >
       <header
         className="
-          shrink-0 text-center
+          relative shrink-0 text-center
           px-fluid-4 pt-[max(env(safe-area-inset-top),0.75rem)]
           pb-fluid-2
           landscape-compact:py-1
@@ -105,6 +113,36 @@ const App: React.FC = () => {
         >
           專注與成長的數位夥伴
         </p>
+
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          aria-label="開啟設定"
+          className="
+            absolute right-3 top-[max(env(safe-area-inset-top),0.75rem)]
+            w-11 h-11 rounded-full
+            text-gray-600 dark:text-gray-300
+            hover:bg-white/60 dark:hover:bg-gray-700/60
+            focus:outline-none focus:ring-4 focus:ring-indigo-400/60
+            transition active:scale-95
+            inline-flex items-center justify-center
+          "
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-6 h-6"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
       </header>
 
       <main
@@ -119,9 +157,6 @@ const App: React.FC = () => {
         <Timer />
       </main>
 
-      {/* Install pill anchored to the *header*, not the viewport, so it never
-          overlaps the progress ring on the lg two-column layout. The pill
-          itself contains a primary action and a small dismiss "×". */}
       {installPrompt && (
         <div
           className="
@@ -162,6 +197,8 @@ const App: React.FC = () => {
           </button>
         </div>
       )}
+
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 };
