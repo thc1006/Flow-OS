@@ -26,9 +26,8 @@ const SESSION_TEXT: Record<SessionType, string> = {
 };
 
 const STROKE_LENGTH = 2 * Math.PI * 45;
+const RESET_CONFIRM_MS = 4500;
 
-// Eased plant-scale: human perception of size is non-linear; ease-out gives
-// a more readable growth curve over the session.
 const easedScale = (p: number): number => 1 + (1 - (1 - p) * (1 - p)) * 0.6;
 
 const formatTime = (seconds: number): string => {
@@ -37,7 +36,7 @@ const formatTime = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-type NoticeKind = 'notification-denied' | 'reset-confirm' | null;
+type Notice = 'notification-denied' | 'reset-confirm' | null;
 
 const Timer: React.FC = () => {
   const isRunning = useTimerStore((s) => s.isRunning);
@@ -64,7 +63,9 @@ const Timer: React.FC = () => {
   const strokeDashoffset = STROKE_LENGTH * (1 - progress);
   const display = formatTime(currentTime);
 
-  // SR-only status announcer fires only on session/run transitions.
+  // Two announcers:
+  //   - statusMessage = SR-only run-state changes (focus/break, run/pause)
+  //   - notice = visible feedback strip (notification denied, reset confirm)
   const [statusMessage, setStatusMessage] = useState('');
   useEffect(() => {
     setStatusMessage(
@@ -74,65 +75,102 @@ const Timer: React.FC = () => {
     );
   }, [isRunning, sessionType]);
 
-  // Notice strip for non-modal feedback: notification denied / reset confirm.
-  const [notice, setNotice] = useState<NoticeKind>(null);
-  const noticeTimer = useRef<number | null>(null);
-  const showNotice = useCallback((kind: NoticeKind, ttlMs = 4500) => {
-    setNotice(kind);
-    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
-    if (kind && ttlMs > 0) {
-      noticeTimer.current = window.setTimeout(() => setNotice(null), ttlMs);
+  // Single source of truth for the reset arm-and-confirm state. Notice is
+  // *derived* from `resetArmed` so the visible state can never go out of
+  // sync with the ref-style arming flag — the previous implementation kept
+  // them in two timers and the visible "重設" label could appear while the
+  // ref still considered itself armed, causing a destructive double-action.
+  const [notice, setNotice] = useState<Notice>(null);
+  const [resetArmed, setResetArmed] = useState(false);
+  const noticeTimerRef = useRef<number | null>(null);
+  const armedTimerRef = useRef<number | null>(null);
+  const clearTimer = (ref: React.MutableRefObject<number | null>) => {
+    if (ref.current !== null) {
+      window.clearTimeout(ref.current);
+      ref.current = null;
     }
-  }, []);
+  };
   useEffect(
     () => () => {
-      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+      clearTimer(noticeTimerRef);
+      clearTimer(armedTimerRef);
     },
     [],
   );
 
+  const showNotice = useCallback((kind: Exclude<Notice, null>, ttlMs = 4500) => {
+    setNotice(kind);
+    clearTimer(noticeTimerRef);
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice((cur) => (cur === kind ? null : cur));
+      noticeTimerRef.current = null;
+    }, ttlMs);
+  }, []);
+
   // Single primary action: identical DOM node, label/colour swap on isRunning.
-  // This stops users from accidentally pressing the *other* action when the
-  // state flips at the moment of the click (e.g. the last second of a session).
   const handlePrimary = useCallback(async () => {
     if (isRunning) {
       pauseTimer();
       return;
     }
-    if ('Notification' in window && Notification.permission === 'default') {
-      try {
-        const result = await Notification.requestPermission();
-        if (result !== 'granted') showNotice('notification-denied');
-      } catch {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        try {
+          const result = await Notification.requestPermission();
+          if (result !== 'granted') showNotice('notification-denied');
+        } catch {
+          showNotice('notification-denied');
+        }
+      } else if (Notification.permission === 'denied') {
         showNotice('notification-denied');
       }
-    } else if ('Notification' in window && Notification.permission === 'denied') {
-      showNotice('notification-denied');
     }
     startTimer();
   }, [isRunning, pauseTimer, startTimer, showNotice]);
 
-  // Reset is destructive in mid-session. First click arms a confirm strip
-  // ("再按一次以重設"); second click within 4.5s actually resets.
-  const resetArmedRef = useRef(false);
+  // Reset is destructive in mid-session. First click arms; second click
+  // within the confirm window actually resets. Both timers (visual notice
+  // and armed-state) advance together so they cannot disagree.
   const handleReset = useCallback(() => {
-    const midSession = currentTime > 0 && currentTime < totalSeconds;
-    if (midSession && !resetArmedRef.current) {
-      resetArmedRef.current = true;
-      showNotice('reset-confirm');
-      window.setTimeout(() => {
-        resetArmedRef.current = false;
-      }, 4500);
+    if (resetArmed) {
+      // confirm: cancel both timers, perform the reset
+      clearTimer(armedTimerRef);
+      clearTimer(noticeTimerRef);
+      setResetArmed(false);
+      setNotice(null);
+      resetTimer();
       return;
     }
-    resetArmedRef.current = false;
-    setNotice(null);
-    resetTimer();
-  }, [currentTime, totalSeconds, resetTimer, showNotice]);
+    const midSession = currentTime > 0 && currentTime < totalSeconds;
+    if (!midSession) {
+      // nothing to lose, reset immediately
+      resetTimer();
+      return;
+    }
+    // arm: schedule a single timer; both visible notice and armed flag
+    // share the same lifetime
+    setResetArmed(true);
+    setNotice('reset-confirm');
+    clearTimer(armedTimerRef);
+    clearTimer(noticeTimerRef);
+    armedTimerRef.current = window.setTimeout(() => {
+      setResetArmed(false);
+      setNotice((cur) => (cur === 'reset-confirm' ? null : cur));
+      armedTimerRef.current = null;
+    }, RESET_CONFIRM_MS);
+  }, [resetArmed, currentTime, totalSeconds, resetTimer]);
+
+  // If the running state changes (session completes, user pauses) clear any
+  // pending arm so a stale "armed" flag can't fire after the user has moved on.
+  useEffect(() => {
+    if (isRunning && resetArmed) {
+      clearTimer(armedTimerRef);
+      setResetArmed(false);
+      setNotice((cur) => (cur === 'reset-confirm' ? null : cur));
+    }
+  }, [isRunning, resetArmed]);
 
   return (
-    // @container with named scope `timer` lets us style based on the wrapper's
-    // own width, not the viewport — the same component works in a sidebar.
     <div className="@container/timer [container-type:inline-size] w-full max-w-5xl">
       <div
         className="
@@ -155,15 +193,15 @@ const Timer: React.FC = () => {
           landscape-compact:items-center
         "
       >
-        {/* BADGE — fade icon/label on session change to feel cohesive with bg */}
+        {/* BADGE — stable DOM (no key remount); icon + label fade via CSS only.
+            Reduced-motion users get the colour swap with no opacity tween,
+            and the SR experience is unaffected because the node persists. */}
         <div
           data-decorative-color
-          key={sessionType}
           className={`
             inline-flex items-center gap-2 rounded-full text-white font-semibold tracking-wide shadow-sm
             px-fluid-3 py-fluid-1 text-fluid-base
             transition-colors duration-300
-            motion-safe:animate-[fadeIn_300ms_ease-out]
             [grid-area:badge]
             ${SESSION_BG[sessionType]}
           `}
@@ -184,7 +222,7 @@ const Timer: React.FC = () => {
           {display}
         </div>
 
-        {/* SR-only status announcer */}
+        {/* SR-only run-state announcer */}
         <div className="sr-only" role="status" aria-live="polite">
           {statusMessage}
         </div>
@@ -236,7 +274,6 @@ const Timer: React.FC = () => {
             [grid-area:controls]
           "
         >
-          {/* PRIMARY — single button, label + colour swap with state */}
           <button
             onClick={handlePrimary}
             aria-label={isRunning ? '暫停計時' : '開始計時'}
@@ -255,30 +292,29 @@ const Timer: React.FC = () => {
             {isRunning ? '暫停' : '開始'}
           </button>
 
-          {/* RESET — armed confirm pattern */}
           <button
             onClick={handleReset}
-            aria-label={notice === 'reset-confirm' ? '再次按下確認重設' : '重設計時'}
+            aria-label={resetArmed ? '再次按下確認重設' : '重設計時'}
             className={`
               px-fluid-3 py-fluid-2 min-h-[2.75rem] active:scale-95 text-white font-semibold
               rounded-lg shadow-lg transition focus:outline-none focus:ring-4
               text-fluid-base
               ${
-                notice === 'reset-confirm'
+                resetArmed
                   ? 'bg-red-700 hover:bg-red-800 active:bg-red-900 focus:ring-red-400/60'
                   : 'bg-slate-600 hover:bg-slate-700 active:bg-slate-800 focus:ring-slate-300/60'
               }
             `}
           >
-            {notice === 'reset-confirm' ? '確認' : '重設'}
+            {resetArmed ? '確認' : '重設'}
           </button>
         </div>
       </div>
 
-      {/* NOTICE STRIP — non-modal feedback channel */}
       <div
         role="status"
         aria-live="polite"
+        data-testid="timer-notice"
         className="
           mt-fluid-3 min-h-[1.5rem] text-center text-fluid-sm
           @lg/timer:text-left
@@ -286,7 +322,7 @@ const Timer: React.FC = () => {
         "
       >
         {notice === 'notification-denied' &&
-          '通知權限未開啟，請保持本頁前景以收到 session 結束提示。'}
+          '通知未啟用，session 結束時不會自動提示。需開啟請於瀏覽器網址列旁的權限設定調整。'}
         {notice === 'reset-confirm' && '再按一次「確認」以放棄目前進度。'}
       </div>
     </div>

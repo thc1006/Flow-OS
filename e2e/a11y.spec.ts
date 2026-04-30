@@ -36,7 +36,7 @@ test.describe('Flow-OS accessibility', () => {
     await reset.click();
     // first click arms; the button label flips to confirm and a notice appears
     await expect(page.getByRole('button', { name: '再次按下確認重設' })).toBeVisible();
-    await expect(page.getByRole('status').getByText(/再按一次/)).toBeVisible();
+    await expect(page.getByTestId('timer-notice')).toContainText('再按一次');
   });
 
   test('main heading is Flow-OS', async ({ page }) => {
