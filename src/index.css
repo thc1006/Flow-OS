@@ -27,9 +27,15 @@ body {
    Informational transitions (progress ring, session colour) stay enabled
    because they convey state to non-screen-reader users. Specificity is
    handled via :where() so utilities can still win without escalation. */
+/* Decorative animations: scale, color tweens, ambient bounces.
+   Informational animations: progress ring (state) keeps running.
+   Specificity stays at 0 via :where(); per-utility motion-reduce works. */
 @media (prefers-reduced-motion: reduce) {
   :where([data-decorative], [data-decorative] *) {
     animation: none;
     transition: none;
+  }
+  :where([data-decorative-color]) {
+    transition-property: none;
   }
 }

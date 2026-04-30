@@ -45,6 +45,8 @@ test.describe('Flow-OS responsive layout', () => {
     ['820×1180 (iPad portrait)', { width: 820, height: 1180 }],
     ['414×896 (iPhone 11)', { width: 414, height: 896 }],
     ['360×640 (compact Android)', { width: 360, height: 640 }],
+    ['932×430 (iPhone landscape)', { width: 932, height: 430 }],
+    ['667×375 (iPhone SE landscape)', { width: 667, height: 375 }],
   ] as const) {
     test(`controls are visible without scrolling on ${label}`, async ({ page }) => {
       await page.setViewportSize(viewport);
@@ -82,5 +84,36 @@ test.describe('Flow-OS responsive layout', () => {
     expect(ring).not.toBeNull();
     // ring sits BELOW the clock vertically
     expect(ring!.y).toBeGreaterThan(clock!.y + clock!.height);
+  });
+
+  test('landscape phone hides the global header to reclaim vertical space', async ({ page }) => {
+    await page.setViewportSize({ width: 932, height: 430 });
+    await page.goto('./');
+    // h1 still in DOM but hidden by landscape-compact:hidden
+    await expect(page.locator('h1')).toBeHidden();
+    // ring placed beside clock (two-column compact layout) — ring x > clock x
+    const clock = await page.getByLabel(/剩餘時間/).boundingBox();
+    const ring = await page.locator('svg:visible').first().boundingBox();
+    expect(ring!.x).toBeGreaterThan(clock!.x);
+  });
+
+  test('single SVG renders in DOM (no duplicated ring nodes)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('./');
+    const svgCount = await page.locator('svg').count();
+    expect(svgCount).toBe(1);
+  });
+
+  test('Fitts: primary CTA wider than reset button', async ({ page }) => {
+    await page.setViewportSize({ width: 414, height: 896 });
+    await page.goto('./');
+    const start = await page.getByRole('button', { name: '開始計時' }).boundingBox();
+    const reset = await page.getByRole('button', { name: '重設計時' }).boundingBox();
+    expect(start).not.toBeNull();
+    expect(reset).not.toBeNull();
+    expect(start!.width).toBeGreaterThan(reset!.width);
+    // WCAG 2.5.5 Target Size (AAA): both ≥ 44px tall
+    expect(start!.height).toBeGreaterThanOrEqual(44);
+    expect(reset!.height).toBeGreaterThanOrEqual(44);
   });
 });

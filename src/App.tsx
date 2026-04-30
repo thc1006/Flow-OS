@@ -31,20 +31,15 @@ const App: React.FC = () => {
       <header
         className="
           shrink-0 text-center
-          px-4 pt-[max(env(safe-area-inset-top),1rem)]
-          pb-3 sm:pb-4 lg:pb-6
+          px-fluid-4 pt-[max(env(safe-area-inset-top),0.75rem)]
+          pb-fluid-2
+          landscape-compact:hidden
         "
       >
-        <h1
-          className="
-            font-bold text-gray-800 dark:text-white
-            text-2xl sm:text-3xl lg:text-4xl
-            leading-tight
-          "
-        >
+        <h1 className="font-bold text-gray-800 dark:text-white text-fluid-xl leading-tight">
           Flow-OS
         </h1>
-        <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm lg:text-base text-gray-600 dark:text-gray-300">
+        <p className="mt-1 text-fluid-sm text-gray-600 dark:text-gray-300">
           專注與成長的數位夥伴
         </p>
       </header>
@@ -53,7 +48,8 @@ const App: React.FC = () => {
         className="
           flex-1 min-h-0
           flex items-center justify-center
-          px-3 sm:px-6
+          px-fluid-3
+          py-fluid-2
           pb-[max(env(safe-area-inset-bottom),0.75rem)]
         "
       >

@@ -13,7 +13,6 @@ const SESSION_ICON: Record<SessionType, string> = {
   longBreak: '🌙',
 };
 
-// All AA-compliant against white text (≥ 4.65:1)
 const SESSION_BG: Record<SessionType, string> = {
   focus: 'bg-indigo-600',
   shortBreak: 'bg-emerald-700',
@@ -57,7 +56,6 @@ const Timer: React.FC = () => {
 
   const progress = totalSeconds > 0 ? (totalSeconds - currentTime) / totalSeconds : 0;
   const strokeDashoffset = STROKE_LENGTH * (1 - progress);
-
   const display = formatTime(currentTime);
 
   const [statusMessage, setStatusMessage] = useState('');
@@ -76,72 +74,39 @@ const Timer: React.FC = () => {
     startTimer();
   }, [startTimer]);
 
-  // Progress ring — extracted so it can be placed in either column on lg+
-  const progressRing = (
-    <div
-      className="
-        relative
-        w-40 h-40
-        sm:w-56 sm:h-56
-        lg:w-64 lg:h-64
-        2xl:w-72 2xl:h-72
-        shrink-0
-      "
-    >
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          fill="none"
-          stroke="currentColor"
-          className="text-gray-200 dark:text-gray-700"
-          strokeWidth="8"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={STROKE_LENGTH}
-          strokeDashoffset={strokeDashoffset}
-          className={`transition-[stroke-dashoffset] duration-300 ease-linear ${SESSION_TEXT[sessionType]}`}
-        />
-      </svg>
-      <div
-        data-decorative
-        className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl"
-      >
-        <span
-          className="transition-transform duration-300 motion-reduce:transition-none"
-          style={{ transform: `scale(${1 + progress * 0.5})` }}
-          aria-hidden="true"
-        >
-          🌱
-        </span>
-      </div>
-    </div>
-  );
-
   return (
-    <div
-      className="
-        w-full max-w-5xl
-        grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]
-        items-center justify-items-center
-        gap-y-4 sm:gap-y-6 lg:gap-x-12
-      "
-    >
-      {/* LEFT COLUMN (or top on small): badge + clock + status + controls */}
-      <div className="flex flex-col items-center lg:items-start gap-y-4 sm:gap-y-6">
+    // @container with named scope `timer` lets us style based on the wrapper's
+    // own width, not the viewport — the same component works in a sidebar.
+    <div className="@container/timer w-full max-w-5xl">
+      <div
+        className="
+          grid w-full
+          grid-cols-1 gap-y-fluid-3
+          [grid-template-areas:'badge''clock''ring''controls']
+          justify-items-center
+          @lg/timer:grid-cols-[minmax(0,1fr)_auto]
+          @lg/timer:grid-rows-[auto_auto_auto]
+          @lg/timer:gap-x-fluid-6
+          @lg/timer:[grid-template-areas:'badge_ring''clock_ring''controls_ring']
+          @lg/timer:justify-items-start
+          @lg/timer:items-center
+          landscape-compact:grid-cols-[minmax(0,1fr)_auto]
+          landscape-compact:grid-rows-[auto_auto_auto]
+          landscape-compact:gap-x-fluid-4
+          landscape-compact:gap-y-fluid-2
+          landscape-compact:[grid-template-areas:'badge_ring''clock_ring''controls_ring']
+          landscape-compact:justify-items-start
+          landscape-compact:items-center
+        "
+      >
+        {/* BADGE */}
         <div
+          data-decorative-color
           className={`
             inline-flex items-center gap-2 rounded-full text-white font-semibold tracking-wide shadow-sm
-            px-4 py-1.5 text-sm sm:px-5 sm:py-2 sm:text-base
-            transition-colors duration-300 motion-reduce:transition-none
+            px-fluid-3 py-fluid-1 text-fluid-base
+            transition-colors duration-300
+            [grid-area:badge]
             ${SESSION_BG[sessionType]}
           `}
         >
@@ -149,35 +114,84 @@ const Timer: React.FC = () => {
           <span>{SESSION_LABEL[sessionType]}</span>
         </div>
 
+        {/* CLOCK */}
         <div
           className="
-            font-mono font-bold text-gray-800 dark:text-white tabular-nums leading-none
-            text-6xl sm:text-7xl lg:text-8xl 2xl:text-9xl
+            font-mono font-bold text-gray-800 dark:text-white tabular-nums
+            text-fluid-display
+            [grid-area:clock]
           "
           aria-label={`剩餘時間 ${display}`}
         >
           {display}
         </div>
 
+        {/* SR-only status announcer */}
         <div className="sr-only" role="status" aria-live="polite">
           {statusMessage}
         </div>
 
-        {/* progress ring inline on small screens */}
-        <div className="lg:hidden">{progressRing}</div>
-
+        {/* RING — single DOM, just relocated by grid-area in @lg/timer */}
         <div
           className="
-            grid grid-cols-2 gap-3 sm:gap-4 w-full max-w-xs lg:max-w-sm
+            relative shrink-0
+            w-fluid-ring h-fluid-ring
+            [grid-area:ring]
+          "
+        >
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="currentColor"
+              className="text-gray-200 dark:text-gray-700"
+              strokeWidth="8"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={STROKE_LENGTH}
+              strokeDashoffset={strokeDashoffset}
+              className={`transition-[stroke-dashoffset] duration-300 ease-linear ${SESSION_TEXT[sessionType]}`}
+            />
+          </svg>
+          <div
+            data-decorative
+            className="absolute inset-0 flex items-center justify-center text-fluid-2xl"
+          >
+            <span
+              className="transition-transform duration-300"
+              style={{ transform: `scale(${1 + progress * 0.5})` }}
+              aria-hidden="true"
+            >
+              🌱
+            </span>
+          </div>
+        </div>
+
+        {/* CONTROLS — Fitts' law: primary CTA larger than secondary */}
+        <div
+          className="
+            grid w-full max-w-md gap-fluid-2
+            grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
+            [grid-area:controls]
           "
         >
           {!isRunning ? (
             <button
               onClick={handleStart}
               className="
-                px-6 py-3 sm:px-8 active:scale-95 text-white font-semibold
+                px-fluid-4 py-fluid-2 min-h-[2.75rem] active:scale-95 text-white font-semibold
                 rounded-lg shadow-lg transition focus:outline-none focus:ring-4
                 bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-400/60
+                text-fluid-base
               "
               aria-label="開始計時"
             >
@@ -187,9 +201,10 @@ const Timer: React.FC = () => {
             <button
               onClick={pauseTimer}
               className="
-                px-6 py-3 sm:px-8 active:scale-95 text-white font-semibold
+                px-fluid-4 py-fluid-2 min-h-[2.75rem] active:scale-95 text-white font-semibold
                 rounded-lg shadow-lg transition focus:outline-none focus:ring-4
                 bg-amber-700 hover:bg-amber-800 focus:ring-amber-400/60
+                text-fluid-base
               "
               aria-label="暫停計時"
             >
@@ -200,9 +215,10 @@ const Timer: React.FC = () => {
           <button
             onClick={resetTimer}
             className="
-              px-6 py-3 sm:px-8 active:scale-95 text-white font-semibold
+              px-fluid-3 py-fluid-2 min-h-[2.75rem] active:scale-95 text-white font-semibold
               rounded-lg shadow-lg transition focus:outline-none focus:ring-4
               bg-slate-600 hover:bg-slate-700 focus:ring-slate-300/60
+              text-fluid-base
             "
             aria-label="重設計時"
           >
@@ -210,9 +226,6 @@ const Timer: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* RIGHT COLUMN on lg+: progress ring */}
-      <div className="hidden lg:block">{progressRing}</div>
     </div>
   );
 };
