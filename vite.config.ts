@@ -3,7 +3,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+// Default to the GitHub/GitLab project page sub-path; override with
+// VITE_BASE_PATH (e.g. '/' for a custom apex domain or local-host serve).
+const BASE_PATH = process.env.VITE_BASE_PATH ?? '/Flow-OS/';
+
+export default defineConfig(({ mode }) => ({
+  // dev (mode=development) keeps base='/' for ergonomics;
+  // build & preview (mode=production) use the project sub-path
+  base: mode === 'production' ? BASE_PATH : '/',
   plugins: [react()],
   server: { port: 3000 },
   preview: { port: 3000 },
@@ -25,4 +32,4 @@ export default defineConfig({
       exclude: ['src/main.tsx', 'src/**/*.d.ts'],
     },
   },
-});
+}));

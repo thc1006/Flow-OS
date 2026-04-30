@@ -2,7 +2,10 @@ export const registerServiceWorker = async (): Promise<void> => {
   if (!('serviceWorker' in navigator)) return;
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+    const registration = await navigator.serviceWorker.register(swUrl, {
+      scope: import.meta.env.BASE_URL,
+    });
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       if (!newWorker) return;

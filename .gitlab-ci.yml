@@ -19,6 +19,7 @@ cache:
 
 install_dependencies:
   stage: install
+  timeout: 10m
   script:
     - npm ci
   artifacts:
@@ -28,6 +29,7 @@ install_dependencies:
 
 lint_and_unit_tests:
   stage: test
+  timeout: 10m
   needs: [install_dependencies]
   script:
     - npm run lint
@@ -43,6 +45,7 @@ lint_and_unit_tests:
 
 build_app:
   stage: build
+  timeout: 10m
   needs: [install_dependencies]
   script:
     - npm run build
@@ -53,6 +56,12 @@ build_app:
 
 e2e_and_a11y:
   stage: review
+  timeout: 20m
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
   needs: [install_dependencies, build_app]
   script:
     - npx playwright install --with-deps chromium
@@ -65,6 +74,7 @@ e2e_and_a11y:
 
 pages:
   stage: deploy
+  timeout: 5m
   needs:
     - job: build_app
     - job: lint_and_unit_tests
@@ -83,6 +93,7 @@ pages:
 
 deploy_staging:
   stage: deploy
+  timeout: 5m
   needs: [build_app, lint_and_unit_tests]
   script:
     - mkdir -p public-staging

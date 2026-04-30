@@ -3,7 +3,7 @@ import { injectAxe, checkA11y } from 'axe-playwright';
 
 test.describe('Flow-OS accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await injectAxe(page);
   });
 

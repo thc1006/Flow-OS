@@ -1,8 +1,10 @@
 /* eslint-env serviceworker */
-const STATIC_CACHE = 'flow-os-static-v2';
-const RUNTIME_CACHE = 'flow-os-runtime-v2';
+const STATIC_CACHE = 'flow-os-static-v3';
+const RUNTIME_CACHE = 'flow-os-runtime-v3';
 
-const STATIC_ASSETS = ['/', '/manifest.json'];
+// SW scope is determined at registration; assets cached relative to it
+const SCOPE = self.registration?.scope || self.location.href.replace(/sw\.js$/, '');
+const STATIC_ASSETS = [SCOPE, `${SCOPE}manifest.json`];
 
 const RUNTIME_CACHE_PATTERNS = [
   /^https:\/\/fonts\.googleapis\.com/,
@@ -51,7 +53,7 @@ async function handleRequest(request) {
     const cached = await caches.match(request);
     if (cached) return cached;
     if (request.headers.get('accept')?.includes('text/html')) {
-      const offline = await caches.match('/');
+      const offline = await caches.match(SCOPE);
       if (offline) return offline;
     }
     throw error;
@@ -98,7 +100,7 @@ async function staleWhileRevalidate(request) {
 
 function isStaticAsset(pathname) {
   return (
-    STATIC_ASSETS.includes(pathname) ||
+    STATIC_ASSETS.some((url) => url.endsWith(pathname) || pathname === new URL(url).pathname) ||
     /\.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?)$/.test(pathname)
   );
 }
