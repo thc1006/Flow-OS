@@ -14,9 +14,6 @@ const SESSION_ICON: Record<SessionType, string> = {
 };
 
 // All AA-compliant against white text (≥ 4.65:1)
-// focus      indigo-600  5.20:1
-// shortBreak emerald-700 5.18:1
-// longBreak  sky-700     5.69:1
 const SESSION_BG: Record<SessionType, string> = {
   focus: 'bg-indigo-600',
   shortBreak: 'bg-emerald-700',
@@ -63,7 +60,6 @@ const Timer: React.FC = () => {
 
   const display = formatTime(currentTime);
 
-  // Status announcer: fires only on session/run transitions, not every second
   const [statusMessage, setStatusMessage] = useState('');
   useEffect(() => {
     setStatusMessage(
@@ -80,98 +76,143 @@ const Timer: React.FC = () => {
     startTimer();
   }, [startTimer]);
 
+  // Progress ring — extracted so it can be placed in either column on lg+
+  const progressRing = (
+    <div
+      className="
+        relative
+        w-40 h-40
+        sm:w-56 sm:h-56
+        lg:w-64 lg:h-64
+        2xl:w-72 2xl:h-72
+        shrink-0
+      "
+    >
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
+        <circle
+          cx="50"
+          cy="50"
+          r="45"
+          fill="none"
+          stroke="currentColor"
+          className="text-gray-200 dark:text-gray-700"
+          strokeWidth="8"
+        />
+        <circle
+          cx="50"
+          cy="50"
+          r="45"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={STROKE_LENGTH}
+          strokeDashoffset={strokeDashoffset}
+          className={`transition-[stroke-dashoffset] duration-300 ease-linear ${SESSION_TEXT[sessionType]}`}
+        />
+      </svg>
+      <div
+        data-decorative
+        className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl"
+      >
+        <span
+          className="transition-transform duration-300 motion-reduce:transition-none"
+          style={{ transform: `scale(${1 + progress * 0.5})` }}
+          aria-hidden="true"
+        >
+          🌱
+        </span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col items-center space-y-8 p-8">
-      <div
-        className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm md:text-base
-                    text-white font-semibold tracking-wide shadow-sm
-                    transition-colors duration-300 motion-reduce:transition-none
-                    ${SESSION_BG[sessionType]}`}
-      >
-        <span aria-hidden="true">{SESSION_ICON[sessionType]}</span>
-        <span>{SESSION_LABEL[sessionType]}</span>
-      </div>
+    <div
+      className="
+        w-full max-w-5xl
+        grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]
+        items-center justify-items-center
+        gap-y-4 sm:gap-y-6 lg:gap-x-12
+      "
+    >
+      {/* LEFT COLUMN (or top on small): badge + clock + status + controls */}
+      <div className="flex flex-col items-center lg:items-start gap-y-4 sm:gap-y-6">
+        <div
+          className={`
+            inline-flex items-center gap-2 rounded-full text-white font-semibold tracking-wide shadow-sm
+            px-4 py-1.5 text-sm sm:px-5 sm:py-2 sm:text-base
+            transition-colors duration-300 motion-reduce:transition-none
+            ${SESSION_BG[sessionType]}
+          `}
+        >
+          <span aria-hidden="true">{SESSION_ICON[sessionType]}</span>
+          <span>{SESSION_LABEL[sessionType]}</span>
+        </div>
 
-      <div
-        className="text-8xl font-mono font-bold text-gray-800 dark:text-white tabular-nums"
-        aria-label={`剩餘時間 ${display}`}
-      >
-        {display}
-      </div>
+        <div
+          className="
+            font-mono font-bold text-gray-800 dark:text-white tabular-nums leading-none
+            text-6xl sm:text-7xl lg:text-8xl 2xl:text-9xl
+          "
+          aria-label={`剩餘時間 ${display}`}
+        >
+          {display}
+        </div>
 
-      <div className="sr-only" role="status" aria-live="polite">
-        {statusMessage}
-      </div>
+        <div className="sr-only" role="status" aria-live="polite">
+          {statusMessage}
+        </div>
 
-      <div className="relative w-64 h-64">
-        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            fill="none"
-            stroke="currentColor"
-            className="text-gray-200 dark:text-gray-700"
-            strokeWidth="8"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={STROKE_LENGTH}
-            strokeDashoffset={strokeDashoffset}
-            className={`transition-[stroke-dashoffset] duration-300 ease-linear motion-reduce:transition-none ${SESSION_TEXT[sessionType]}`}
-          />
-        </svg>
+        {/* progress ring inline on small screens */}
+        <div className="lg:hidden">{progressRing}</div>
 
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div
-            className="text-4xl transition-transform duration-300 motion-reduce:transition-none"
-            style={{ transform: `scale(${1 + progress * 0.5})` }}
-            aria-hidden="true"
+        <div
+          className="
+            grid grid-cols-2 gap-3 sm:gap-4 w-full max-w-xs lg:max-w-sm
+          "
+        >
+          {!isRunning ? (
+            <button
+              onClick={handleStart}
+              className="
+                px-6 py-3 sm:px-8 active:scale-95 text-white font-semibold
+                rounded-lg shadow-lg transition focus:outline-none focus:ring-4
+                bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-400/60
+              "
+              aria-label="開始計時"
+            >
+              開始
+            </button>
+          ) : (
+            <button
+              onClick={pauseTimer}
+              className="
+                px-6 py-3 sm:px-8 active:scale-95 text-white font-semibold
+                rounded-lg shadow-lg transition focus:outline-none focus:ring-4
+                bg-amber-700 hover:bg-amber-800 focus:ring-amber-400/60
+              "
+              aria-label="暫停計時"
+            >
+              暫停
+            </button>
+          )}
+
+          <button
+            onClick={resetTimer}
+            className="
+              px-6 py-3 sm:px-8 active:scale-95 text-white font-semibold
+              rounded-lg shadow-lg transition focus:outline-none focus:ring-4
+              bg-slate-600 hover:bg-slate-700 focus:ring-slate-300/60
+            "
+            aria-label="重設計時"
           >
-            🌱
-          </div>
+            重設
+          </button>
         </div>
       </div>
 
-      <div className="flex space-x-4">
-        {!isRunning ? (
-          <button
-            onClick={handleStart}
-            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95
-                       text-white font-semibold rounded-lg shadow-lg transition
-                       focus:outline-none focus:ring-4 focus:ring-indigo-400/60"
-            aria-label="開始計時"
-          >
-            開始
-          </button>
-        ) : (
-          <button
-            onClick={pauseTimer}
-            className="px-8 py-3 bg-amber-700 hover:bg-amber-800 active:scale-95
-                       text-white font-semibold rounded-lg shadow-lg transition
-                       focus:outline-none focus:ring-4 focus:ring-amber-400/60"
-            aria-label="暫停計時"
-          >
-            暫停
-          </button>
-        )}
-
-        <button
-          onClick={resetTimer}
-          className="px-8 py-3 bg-slate-600 hover:bg-slate-700 active:scale-95
-                     text-white font-semibold rounded-lg shadow-lg transition
-                     focus:outline-none focus:ring-4 focus:ring-slate-300/60"
-          aria-label="重設計時"
-        >
-          重設
-        </button>
-      </div>
+      {/* RIGHT COLUMN on lg+: progress ring */}
+      <div className="hidden lg:block">{progressRing}</div>
     </div>
   );
 };

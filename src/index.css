@@ -16,16 +16,20 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  /* dvh = dynamic viewport height; respects mobile browser chrome */
+  min-height: 100dvh;
+  /* honour iOS notches / Android gesture bars */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+/* Reduced motion: scope to decorative-only animations.
+   Informational transitions (progress ring, session colour) stay enabled
+   because they convey state to non-screen-reader users. Specificity is
+   handled via :where() so utilities can still win without escalation. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  :where([data-decorative], [data-decorative] *) {
+    animation: none;
+    transition: none;
   }
 }

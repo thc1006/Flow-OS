@@ -21,16 +21,44 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-2">Flow-OS</h1>
-          <p className="text-gray-600 dark:text-gray-300">專注與成長的數位夥伴</p>
-        </header>
-        <main>
-          <Timer />
-        </main>
-      </div>
+    <div
+      className="
+        min-h-[100dvh] flex flex-col
+        bg-gradient-to-br from-blue-50 to-indigo-100
+        dark:from-gray-900 dark:to-gray-800
+      "
+    >
+      <header
+        className="
+          shrink-0 text-center
+          px-4 pt-[max(env(safe-area-inset-top),1rem)]
+          pb-3 sm:pb-4 lg:pb-6
+        "
+      >
+        <h1
+          className="
+            font-bold text-gray-800 dark:text-white
+            text-2xl sm:text-3xl lg:text-4xl
+            leading-tight
+          "
+        >
+          Flow-OS
+        </h1>
+        <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm lg:text-base text-gray-600 dark:text-gray-300">
+          專注與成長的數位夥伴
+        </p>
+      </header>
+
+      <main
+        className="
+          flex-1 min-h-0
+          flex items-center justify-center
+          px-3 sm:px-6
+          pb-[max(env(safe-area-inset-bottom),0.75rem)]
+        "
+      >
+        <Timer />
+      </main>
     </div>
   );
 };
